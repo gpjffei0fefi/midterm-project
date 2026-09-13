@@ -1,0 +1,8 @@
+export const ROLL_TICK_MS = 80
+export const ROLL_DURATION_MS = 500
+export const STEP_PAUSE_MS = 300
+export const LANDING_GLOW_MS = 650
+export const FLIP_DELAY_MS = 350
+export const RESOLUTION_DISPLAY_MS = 900
+export const FLY_DURATION_MS = 550
+export const TRUST_DELTA_DISPLAY_MS = 1100
