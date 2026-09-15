@@ -1,7 +1,16 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { TILES, INITIAL_PLAYERS } from '../data/boardData'
 import { DECKS } from '../data/quizCards'
-import { ACQUIRE_WRONG_PENALTY, NEUTRAL_BONUS, NEUTRAL_PENALTY, LANDING_FEE_MULTIPLIER } from '../data/gameRules'
+import {
+  MODULE_ACCURACY_BONUS,
+  MODULE_AXIS_BONUS,
+  ACQUIRE_WRONG_PENALTY,
+  FOLLOWUP_WRONG_PENALTY,
+  NEUTRAL_BONUS,
+  NEUTRAL_PENALTY,
+  LANDING_FEE_MULTIPLIER,
+  AI_CORRECT_PROBABILITY_BY_TIER,
+} from '../data/gameRules'
 import {
   ROLL_TICK_MS,
   ROLL_DURATION_MS,
@@ -11,6 +20,8 @@ import {
   RESOLUTION_DISPLAY_MS,
   FLY_DURATION_MS,
   TRUST_DELTA_DISPLAY_MS,
+  AI_TURN_START_DELAY_MS,
+  AI_THINK_MS,
 } from '../constants/timing'
 import { sleep } from '../utils/sleep'
 import Tile from './Tile'
@@ -19,6 +30,7 @@ import ControlPanel from './ControlPanel'
 import ModulesPanel from './ModulesPanel'
 import LandingQuiz from './LandingQuiz'
 import FlyingModuleChip from './FlyingModuleChip'
+import ModelReveal from './ModelReveal'
 
 function randomFace() {
   return 1 + Math.floor(Math.random() * 6)
@@ -37,6 +49,13 @@ function drawCardForTile(tile) {
   return source[Math.floor(Math.random() * source.length)]
 }
 
+// AI opponents don't reason about the question — just a weighted coin flip
+// keyed by the card's difficulty tier.
+function rollAICorrectness(tier) {
+  const probability = AI_CORRECT_PROBABILITY_BY_TIER[tier] ?? 0.5
+  return Math.random() < probability
+}
+
 function GameBoard() {
   const [players, setPlayers] = useState(INITIAL_PLAYERS)
   const [currentPlayerIndex, setCurrentPlayerIndex] = useState(0)
@@ -48,6 +67,7 @@ function GameBoard() {
   const [activeQuiz, setActiveQuiz] = useState(null)
   const [flyingModule, setFlyingModule] = useState(null)
   const [trustDeltas, setTrustDeltas] = useState({})
+  const [gameOver, setGameOver] = useState(false)
 
   const tileRefs = useRef(new Map())
   const tileRefCallbacks = useRef({})
@@ -56,6 +76,10 @@ function GameBoard() {
   const quizResolverRef = useRef(null)
 
   const activePlayer = players[currentPlayerIndex]
+
+  function isAIPlayer(playerId) {
+    return players.find((p) => p.id === playerId)?.isAI ?? false
+  }
 
   function registerTileRef(tileId) {
     if (!tileRefCallbacks.current[tileId]) {
@@ -77,12 +101,28 @@ function GameBoard() {
     return panelRefCallbacks.current[playerId]
   }
 
-  function applyTrustChange(playerId, amount) {
+  // deltas: partial { accuracy?, fairness?, transparency? } — applies each
+  // axis independently (clamped at 0) and pops a single floating indicator
+  // showing the net change to the player's total Trust Score.
+  function applyAxisChange(playerId, deltas) {
+    let netDelta = 0
     setPlayers((prev) =>
-      prev.map((p) => (p.id === playerId ? { ...p, trustScore: Math.max(0, p.trustScore + amount) } : p))
+      prev.map((p) => {
+        if (p.id !== playerId) return p
+        const next = { ...p }
+        for (const axis of ['accuracy', 'fairness', 'transparency']) {
+          if (deltas[axis]) {
+            const clamped = Math.max(0, p[axis] + deltas[axis])
+            netDelta += clamped - p[axis]
+            next[axis] = clamped
+          }
+        }
+        return next
+      })
     )
+    if (netDelta === 0) return
     const key = `${playerId}-${Date.now()}-${Math.random()}`
-    setTrustDeltas((prev) => ({ ...prev, [playerId]: { amount, key } }))
+    setTrustDeltas((prev) => ({ ...prev, [playerId]: { amount: netDelta, key } }))
     setTimeout(() => {
       setTrustDeltas((prev) => {
         if (prev[playerId]?.key !== key) return prev
@@ -93,35 +133,50 @@ function GameBoard() {
     }, TRUST_DELTA_DISPLAY_MS)
   }
 
-  function presentQuiz(card, describeResult) {
+  function presentQuiz(card, describeResult, isAI = false) {
     return new Promise((resolve) => {
       quizResolverRef.current = resolve
-      setActiveQuiz({ card, flipped: false, selectedOption: null, resolution: null, resultLabel: null, describeResult })
+      setActiveQuiz({
+        card,
+        flipped: false,
+        selectedOption: null,
+        resolution: null,
+        resultLabel: null,
+        describeResult,
+        isAI,
+      })
       setTimeout(() => {
         setActiveQuiz((q) => (q ? { ...q, flipped: true } : q))
+        if (isAI) {
+          setTimeout(() => {
+            const optionIndex = Math.floor(Math.random() * card.options.length)
+            const isCorrect =
+              card.correctIndex === null
+                ? rollAICorrectness(card.difficultyTier)
+                : optionIndex === card.correctIndex
+            finishQuiz(optionIndex, isCorrect, describeResult)
+          }, AI_THINK_MS)
+        }
       }, FLIP_DELAY_MS)
     })
   }
 
-  function handleSelectOption(index) {
-    if (!activeQuiz || activeQuiz.selectedOption !== null) return
-    const { card, describeResult } = activeQuiz
-    const isCorrect = card.correctIndex === null ? Math.random() < 0.5 : index === card.correctIndex
+  function finishQuiz(index, isCorrect, describeResult) {
     const resultLabel = describeResult(isCorrect)
-
-    setActiveQuiz((q) => ({
-      ...q,
-      selectedOption: index,
-      resolution: isCorrect ? 'correct' : 'wrong',
-      resultLabel,
-    }))
-
+    setActiveQuiz((q) => (q ? { ...q, selectedOption: index, resolution: isCorrect ? 'correct' : 'wrong', resultLabel } : q))
     setTimeout(() => {
       setActiveQuiz(null)
       const resolve = quizResolverRef.current
       quizResolverRef.current = null
       resolve?.(isCorrect)
     }, RESOLUTION_DISPLAY_MS)
+  }
+
+  function handleSelectOption(index) {
+    if (!activeQuiz || activeQuiz.selectedOption !== null || activeQuiz.isAI) return
+    const { card, describeResult } = activeQuiz
+    const isCorrect = card.correctIndex === null ? Math.random() < 0.5 : index === card.correctIndex
+    finishQuiz(index, isCorrect, describeResult)
   }
 
   async function flyModuleToPanel(tile, playerId) {
@@ -145,37 +200,57 @@ function GameBoard() {
 
   async function handleModuleAcquisitionDraw(tile, playerId) {
     const card = drawCardForTile(tile)
-    const isCorrect = await presentQuiz(card, (correct) =>
-      correct ? 'Acquired — module is clean' : `Incorrect — trust -${ACQUIRE_WRONG_PENALTY}`
+    const isCorrect = await presentQuiz(
+      card,
+      (correct) => (correct ? 'Acquired — module is clean' : 'Incorrect — trust penalty'),
+      isAIPlayer(playerId)
     )
     if (isCorrect) {
       await flyModuleToPanel(tile, playerId)
+      const deltas = { accuracy: MODULE_ACCURACY_BONUS }
+      if (tile.trustAxis) deltas[tile.trustAxis] = MODULE_AXIS_BONUS
+      applyAxisChange(playerId, deltas)
     } else {
-      applyTrustChange(playerId, -ACQUIRE_WRONG_PENALTY)
+      const deltas = { accuracy: -ACQUIRE_WRONG_PENALTY }
+      if (tile.trustAxis) deltas[tile.trustAxis] = -ACQUIRE_WRONG_PENALTY
+      applyAxisChange(playerId, deltas)
     }
   }
 
   async function handleModuleFollowUpDraw(tile, playerId) {
     const card = drawCardForTile(tile)
-    const isCorrect = await presentQuiz(card, (correct) => (correct ? 'Still clean' : 'Flagged glitchy'))
+    const isCorrect = await presentQuiz(
+      card,
+      (correct) => (correct ? 'Still clean' : 'Flagged glitchy'),
+      isAIPlayer(playerId)
+    )
     if (!isCorrect) {
       setModuleState((prev) => ({ ...prev, [tile.id]: { ...prev[tile.id], state: 'glitchy' } }))
+      const deltas = { accuracy: -FOLLOWUP_WRONG_PENALTY }
+      if (tile.trustAxis) deltas[tile.trustAxis] = -FOLLOWUP_WRONG_PENALTY
+      applyAxisChange(playerId, deltas)
     }
   }
 
   async function handleNeutralDraw(tile, playerId) {
     const deck = DECKS[tile.deckKey]
     const card = deck[Math.floor(Math.random() * deck.length)]
-    const isCorrect = await presentQuiz(card, (correct) =>
-      correct ? `Trust +${NEUTRAL_BONUS}` : `Trust -${NEUTRAL_PENALTY}`
+    const axis = tile.deckKey === 'ethics' ? 'fairness' : 'accuracy'
+    const isCorrect = await presentQuiz(
+      card,
+      (correct) => (correct ? `Trust +${NEUTRAL_BONUS}` : `Trust -${NEUTRAL_PENALTY}`),
+      isAIPlayer(playerId)
     )
-    applyTrustChange(playerId, isCorrect ? NEUTRAL_BONUS : -NEUTRAL_PENALTY)
+    applyAxisChange(playerId, { [axis]: isCorrect ? NEUTRAL_BONUS : -NEUTRAL_PENALTY })
   }
 
   async function applyLandingFee(tile, visitorId, ownerId) {
     const fee = Math.abs(tile.ethicsWeight) * LANDING_FEE_MULTIPLIER
-    applyTrustChange(visitorId, -fee)
-    applyTrustChange(ownerId, fee)
+    const irresponsible = tile.ethicsWeight < 0
+    const visitorAxis = irresponsible ? 'fairness' : 'accuracy'
+    const ownerAxis = irresponsible ? 'accuracy' : tile.trustAxis || 'accuracy'
+    applyAxisChange(visitorId, { [visitorAxis]: -fee })
+    applyAxisChange(ownerId, { [ownerAxis]: fee })
     await sleep(TRUST_DELTA_DISPLAY_MS)
   }
 
@@ -195,7 +270,7 @@ function GameBoard() {
   }
 
   async function handleRoll() {
-    if (isRolling || isMoving) return
+    if (isRolling || isMoving || gameOver) return
 
     setIsRolling(true)
     const ticks = Math.round(ROLL_DURATION_MS / ROLL_TICK_MS)
@@ -229,6 +304,22 @@ function GameBoard() {
     setIsMoving(false)
     setCurrentPlayerIndex((prev) => (prev + 1) % players.length)
   }
+
+  // AI opponents roll for themselves — no button press needed.
+  useEffect(() => {
+    if (!activePlayer.isAI || isRolling || isMoving || gameOver) return
+    const timer = setTimeout(() => {
+      handleRoll()
+    }, AI_TURN_START_DELAY_MS)
+    return () => clearTimeout(timer)
+  }, [currentPlayerIndex, gameOver])
+
+  // The game ends the moment every module tile has an owner.
+  useEffect(() => {
+    if (Object.values(moduleState).every((m) => m.owner !== null)) {
+      setGameOver(true)
+    }
+  }, [moduleState])
 
   const ownedByPlayer = players.reduce((acc, p) => {
     acc[p.id] = TILES.filter((t) => t.type === 'module' && moduleState[t.id]?.owner === p.id).map((t) => ({
@@ -282,6 +373,7 @@ function GameBoard() {
 
       {activeQuiz && <LandingQuiz quiz={activeQuiz} onSelectOption={handleSelectOption} />}
       {flyingModule && <FlyingModuleChip flight={flyingModule} />}
+      {gameOver && <ModelReveal players={players} ownedByPlayer={ownedByPlayer} />}
     </>
   )
 }

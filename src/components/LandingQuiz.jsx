@@ -1,7 +1,7 @@
 import QuizCard from './QuizCard'
 
 function LandingQuiz({ quiz, onSelectOption }) {
-  const { card, flipped, selectedOption, resolution, resultLabel } = quiz
+  const { card, flipped, selectedOption, resolution, resultLabel, isAI } = quiz
 
   return (
     <div className="quiz-overlay">
@@ -12,9 +12,12 @@ function LandingQuiz({ quiz, onSelectOption }) {
           selectedOption={selectedOption}
           onSelectOption={onSelectOption}
           resolution={resolution}
+          interactive={!isAI}
         />
-        {resultLabel && (
+        {resultLabel ? (
           <div className={`quiz-outcome quiz-outcome--${resolution}`}>{resultLabel}</div>
+        ) : (
+          isAI && flipped && <div className="quiz-outcome quiz-outcome--thinking">AI is answering…</div>
         )}
       </div>
     </div>

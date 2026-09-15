@@ -3,9 +3,9 @@ const DECK_NAMES = {
   ethics: 'Ethics',
 }
 
-function QuizCard({ card, flipped, selectedOption, onSelectOption, resolution }) {
+function QuizCard({ card, flipped, selectedOption, onSelectOption, resolution, interactive = true }) {
   const deckLabel = DECK_NAMES[card.deck]
-  const locked = resolution != null
+  const locked = resolution != null || !interactive
 
   return (
     <div className="quiz-card-scene">

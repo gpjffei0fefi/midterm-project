@@ -6,3 +6,5 @@ export const FLIP_DELAY_MS = 350
 export const RESOLUTION_DISPLAY_MS = 900
 export const FLY_DURATION_MS = 550
 export const TRUST_DELTA_DISPLAY_MS = 1100
+export const AI_TURN_START_DELAY_MS = 900
+export const AI_THINK_MS = 700

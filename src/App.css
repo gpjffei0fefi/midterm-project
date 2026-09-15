@@ -259,6 +259,21 @@
   text-overflow: ellipsis;
 }
 
+.ai-tag,
+.control-panel__ai-tag {
+  display: inline-block;
+  font-family: var(--mono);
+  font-size: 8.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--ethics-violet);
+  border: 1px solid var(--ethics-violet);
+  border-radius: 2px;
+  padding: 1px 4px;
+  margin: 0 4px;
+  vertical-align: middle;
+}
+
 .dice {
   display: flex;
   flex-direction: column;
@@ -356,52 +371,81 @@
   gap: 8px;
 }
 
-.trust-row {
-  display: grid;
-  grid-template-columns: 10px auto 1fr 26px;
-  align-items: center;
-  gap: 8px;
-  padding: 3px 5px;
+.trust-player {
+  padding: 5px 5px 6px;
   margin: 0 -5px;
   border-radius: 3px;
   transition: background 0.2s ease;
 }
 
-.trust-row--active {
+.trust-player--active {
   background: color-mix(in srgb, var(--token-color) 12%, transparent);
 }
 
-.trust-row--active .trust-row__name {
+.trust-player--active .trust-player__name {
   color: var(--copper-bright);
   font-weight: 600;
 }
 
-.trust-row__swatch {
+.trust-player__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.trust-player__swatch {
   width: 8px;
   height: 8px;
+  flex-shrink: 0;
   border-radius: 50%;
   background: var(--token-color);
   box-shadow: 0 0 5px 0 var(--token-color);
 }
 
-.trust-row__name {
+.trust-player__name {
+  flex: 1;
   font-size: 12px;
   color: var(--text-bright);
   white-space: nowrap;
 }
 
-.trust-row__meter {
-  height: 5px;
-  border-radius: 3px;
+.trust-player__axes {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.trust-axis {
+  display: grid;
+  grid-template-columns: 30px 1fr;
+  align-items: center;
+  gap: 6px;
+}
+
+.trust-axis__label {
+  font-family: var(--mono);
+  font-size: 8.5px;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.trust-axis__meter {
+  height: 4px;
+  border-radius: 2px;
   background: rgba(124, 147, 172, 0.15);
   overflow: hidden;
 }
 
-.trust-row__fill {
+.trust-axis__fill {
   height: 100%;
-  background: var(--token-color);
-  border-radius: 3px;
+  border-radius: 2px;
+  transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 }
+
+.trust-axis__fill--accuracy { background: var(--copper); }
+.trust-axis__fill--fairness { background: var(--circuit-green); }
+.trust-axis__fill--transparency { background: var(--ethics-violet); }
 
 .trust-row__value-wrap {
   position: relative;
@@ -845,6 +889,12 @@
   background: color-mix(in srgb, var(--glitch-red) 12%, transparent);
 }
 
+.quiz-outcome--thinking {
+  color: var(--text-muted);
+  border: 1px dashed var(--line-mid);
+  font-style: italic;
+}
+
 /* -------------------------------------------------- flying module -------------------------------------------------- */
 
 .flying-module {
@@ -872,6 +922,231 @@
   color: var(--navy-deep);
 }
 
+/* -------------------------------------------------- model reveal -------------------------------------------------- */
+
+.model-reveal {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 16px;
+  overflow-y: auto;
+  background:
+    radial-gradient(circle at 50% 15%, rgba(63, 167, 150, 0.1), transparent 60%),
+    rgba(6, 11, 18, 0.95);
+  animation: overlay-fade-in 0.3s ease-out;
+}
+
+.model-reveal__content {
+  width: 100%;
+  max-width: 960px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 32px;
+}
+
+.model-reveal__header {
+  text-align: center;
+}
+
+.model-reveal__eyebrow {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--copper-bright);
+  letter-spacing: 0.04em;
+}
+
+.model-reveal__title {
+  font-size: clamp(28px, 5vw, 40px);
+  font-weight: 700;
+  margin-top: 6px;
+}
+
+.model-reveal__players {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 20px;
+  width: 100%;
+}
+
+.reveal-card {
+  position: relative;
+  width: 200px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 22px 16px 16px;
+  border: 1px solid var(--line-mid);
+  border-radius: 6px;
+  background: var(--navy-panel);
+  transition: opacity 0.4s ease, filter 0.4s ease, border-color 0.4s ease, box-shadow 0.4s ease;
+}
+
+.reveal-card--pending {
+  opacity: 0.4;
+  filter: grayscale(0.6);
+}
+
+.reveal-card--active {
+  border-color: var(--token-color);
+  box-shadow: 0 0 0 1px var(--token-color);
+}
+
+.reveal-card--winner {
+  border-color: var(--amber);
+  animation: winner-glow 1.8s ease-in-out infinite;
+}
+
+.reveal-card__badge {
+  position: absolute;
+  top: -11px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--amber);
+  color: var(--navy-deep);
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  padding: 3px 10px;
+  border-radius: 3px;
+  animation: badge-pop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+@keyframes winner-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(232, 176, 75, 0.5); }
+  50% { box-shadow: 0 0 22px 3px rgba(232, 176, 75, 0.55); }
+}
+
+@keyframes badge-pop {
+  0% { transform: translateX(-50%) scale(0); }
+  100% { transform: translateX(-50%) scale(1); }
+}
+
+.reveal-card__header {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.reveal-card__swatch {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--token-color);
+  box-shadow: 0 0 6px 0 var(--token-color);
+}
+
+.reveal-card__name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-bright);
+}
+
+.reveal-card__creature {
+  width: 100%;
+  min-height: 130px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.reveal-card__stats {
+  width: 100%;
+}
+
+.reveal-card__total {
+  font-family: var(--mono);
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-bright);
+  text-align: center;
+  margin-bottom: 8px;
+}
+
+.reveal-card__pending {
+  display: block;
+  text-align: center;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+/* -------------------------------------------------- creature -------------------------------------------------- */
+
+.creature {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.creature__row {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  flex-wrap: wrap;
+}
+
+.creature__empty {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.creature-part,
+.creature-part-slot {
+  width: 28px;
+  height: 28px;
+  display: inline-block;
+}
+
+.creature-part {
+  animation: part-snap 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+.creature-part-slot {
+  border: 1px dashed var(--line-faint);
+  border-radius: 4px;
+  opacity: 0.4;
+}
+
+@keyframes part-snap {
+  0% { transform: scale(0) rotate(-20deg); opacity: 0; }
+  65% { transform: scale(1.18) rotate(6deg); opacity: 1; }
+  100% { transform: scale(1) rotate(0deg); opacity: 1; }
+}
+
+.creature-part--base { border-radius: 4px 4px 2px 2px; }
+.creature-part--thruster { clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%); }
+.creature-part--core { clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%); }
+.creature-part--shield { clip-path: polygon(50% 0%, 100% 22%, 100% 62%, 50% 100%, 0% 62%, 0% 22%); }
+.creature-part--beacon { clip-path: polygon(50% 0%, 100% 100%, 0% 100%); }
+
+.creature-part--eye {
+  border-radius: 50%;
+  background-image: radial-gradient(circle, var(--navy-deep) 28%, transparent 29%);
+}
+
+.creature-part--responsible { background-color: var(--circuit-green); }
+.creature-part--performance { background-color: var(--copper); }
+
+.creature-part--glitchy {
+  background-color: var(--glitch-red);
+  background-image: repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.18) 0 2px, transparent 2px 5px);
+  animation: part-snap 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) both, glitch-flicker 1.4s steps(6) infinite;
+}
+
 /* -------------------------------------------------- responsive -------------------------------------------------- */
 
 @media (max-width: 560px) {
@@ -881,6 +1156,11 @@
 
   .deck-tray {
     gap: 32px;
+  }
+
+  .reveal-card {
+    width: 42vw;
+    min-width: 150px;
   }
 }
 
@@ -894,12 +1174,19 @@
   .quiz-overlay,
   .quiz-overlay__content,
   .quiz-card--correct .quiz-card__face--front,
-  .quiz-card--wrong .quiz-card__face--front {
+  .quiz-card--wrong .quiz-card__face--front,
+  .model-reveal,
+  .reveal-card--winner,
+  .reveal-card__badge,
+  .creature-part,
+  .creature-part--glitchy {
     animation: none;
   }
 
   .quiz-card,
-  .flying-module {
+  .flying-module,
+  .trust-axis__fill,
+  .reveal-card {
     transition: none;
   }
 }

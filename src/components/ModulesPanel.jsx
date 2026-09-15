@@ -5,7 +5,10 @@ function ModulesPanel({ players, ownedByPlayer, registerPanelRef }) {
         <div className="modules-panel__column" key={player.id}>
           <div className="modules-panel__player">
             <span className="modules-panel__swatch" style={{ '--token-color': player.color }} />
-            <span className="modules-panel__name">{player.name}</span>
+            <span className="modules-panel__name">
+              {player.name}
+              {player.isAI && <span className="ai-tag">AI</span>}
+            </span>
           </div>
           <div className="modules-panel__chips" ref={registerPanelRef(player.id)}>
             {ownedByPlayer[player.id].length === 0 ? (
