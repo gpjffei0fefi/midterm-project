@@ -20,9 +20,12 @@ npm run build    # production build to dist/
 npm run lint     # oxlint
 ```
 
-There are no environment variables and no `.env` file — the app has no
-external services to configure. `.gitignore` excludes `node_modules`,
-`dist`/`dist-ssr`, and any `.env*` file in case one is added later.
+The game runs with no configuration. The only external service is the
+**optional** shared leaderboard — if its two environment variables are unset,
+the leaderboard UI simply doesn't appear. To enable it, see
+["Leaderboard (optional)"](#leaderboard-optional) below. `.gitignore`
+excludes `node_modules`, `dist`/`dist-ssr`, and every `.env*` file except the
+committed `.env.example` template.
 
 ## File & folder structure
 
@@ -30,10 +33,15 @@ external services to configure. `.gitignore` excludes `node_modules`,
 index.html                  Vite entry HTML; loads Google Fonts (Space Grotesk, JetBrains Mono)
 vite.config.js               Vite + React plugin config
 .oxlintrc.json                Lint rules (React hooks correctness, etc.)
+.env.example                  Template for the optional leaderboard's two env vars (copy to .env.local)
+
+supabase/
+  leaderboard.sql             One-time database setup for the leaderboard (table + security policies)
 
 src/
   main.jsx                    React root render
-  App.jsx                     Top-level layout: <GameBoard /> + <QuizDeckSystem />
+  App.jsx                     Top-level layout: <GameBoard /> + <QuizDeckSystem />, plus the
+                               standalone "View leaderboard" button when the leaderboard is enabled
   index.css                   CSS custom-property palette, global reset, fonts
   App.css                     All component styles (single stylesheet, one file per concern
                                marked off with comment banners — board, tiles, tokens, control
@@ -50,6 +58,9 @@ src/
 
   utils/
     sleep.js                    `sleep(ms)` promise helper used throughout the async turn logic
+
+  lib/
+    leaderboard.js              Leaderboard API client (Supabase REST via fetch) + the `leaderboardEnabled` flag
 
   components/
     GameBoard.jsx                The orchestrator: owns all game state and turn/quiz/trust logic
@@ -69,6 +80,8 @@ src/
                                        highlights the Trust Score winner
     PlayerCreature.jsx                 Lays one player's owned modules into head/torso/base rows
     CreaturePart.jsx                    One placeholder module-shape (clean or glitchy)
+    SubmitScore.jsx                    Name field + submit button shown under the finished reveal
+    LeaderboardScreen.jsx               Full-screen top-20 list; re-fetches every time it opens
 
 screenshots/                    Current UI screenshots (overwritten on each doc regeneration)
 reports/                        One dated markdown file per work session (append-only log)
@@ -180,16 +193,74 @@ module at a time, base-to-head, with a "snap into place" animation, then
 shows that player's score and 3-axis bars before moving to the next
 player — saving the highest score for last. Once everyone's revealed, the
 top-scoring player gets a highlighted "Winner" badge. **Module count has no
-bearing on the win condition** — only the final Trust Score does.
+bearing on the win condition** — only the final Trust Score does. When the
+leaderboard is enabled, the human player's submit form and a "View
+leaderboard" button appear beneath the cards once the winner is shown.
+
+### Leaderboard (optional)
+
+A shared, cross-device top-20 list of final Trust Scores. It uses
+[Supabase](https://supabase.com) (Postgres) through its plain REST API, called
+with `fetch` from `src/lib/leaderboard.js` — no SDK and no extra npm
+dependency. Everything is gated on `leaderboardEnabled`, which is true only
+when both `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` are set; without
+them, no leaderboard button, form, or screen is ever rendered and the game is
+unchanged.
+
+**Setup (one time):**
+
+1. Create a Supabase project (free tier is fine).
+2. In the dashboard's SQL Editor, run `supabase/leaderboard.sql`. It creates
+   the `leaderboard` table and the Row Level Security policies.
+3. Copy `.env.example` to `.env.local` and fill in the project URL and the
+   **anon/public** key (Project Settings → API). Restart `npm run dev`.
+4. For a deployed site, set the same two variables in your host's build
+   settings — Vite inlines them at build time, so changing them requires a
+   rebuild.
+
+**How it works:**
+
+- **Submitting** (`SubmitScore.jsx`): after the reveal finishes, the human
+  player (the one non-AI player) can enter a name (trimmed, whitespace
+  collapsed, max 20 characters) and submit. One row is stored:
+  `name`, `accuracy`, `fairness`, `transparency`. The `total` column is a
+  database-generated column (`accuracy + fairness + transparency`), so a
+  stored total can never disagree with its breakdown. On success the
+  leaderboard opens with the player's new row highlighted; on failure the form
+  stays put with the name intact so they can retry. The form hides after a
+  successful submit, so one game posts at most one score.
+- **Viewing** (`LeaderboardScreen.jsx`): fetches
+  `order=total.desc,created_at.asc&limit=20` **every time it opens** (and on
+  Refresh), so each visit shows current scores from all devices. Ties rank by
+  who submitted first. Each row shows the three axis bars using the same
+  colors as the in-game Trust panel, with exact values in the row's tooltip.
+  Loading, empty, and error (with retry) states are handled. It's reachable
+  from the reveal screen and from a "View leaderboard" button under the decks.
+- **Security model:** the anon key ships in the browser bundle, so it is
+  public by design; the only things protecting the data are the RLS policies
+  in `leaderboard.sql` (anyone can read and insert; nobody can update or
+  delete) plus its `check` constraints (name length, per-axis 0–1000). Never
+  put the `service_role` key in `.env.local`. Known limitation: because
+  scores are computed client-side, a determined visitor can submit a made-up
+  score — fine for a class project, but a real competitive leaderboard would
+  need server-side validation (e.g., a Supabase Edge Function).
+- **Verified against a local mock, not a live project:** the client and UI
+  were exercised end-to-end against a stand-in server that speaks the same
+  REST protocol (auth headers, CORS preflight, ordering/limit, DB
+  constraints, 500s, and outage/recovery). It has not yet been run against a
+  real Supabase project, so do a quick real submit after setup to confirm the
+  keys and policies are right.
 
 ### Save / resume
 
-There is currently no save/resume. All game state (`players`,
-`moduleState`, dice, turn index, etc.) lives in `GameBoard`'s React
-`useState`/`useRef` — a page refresh resets the game to its initial state.
-Nothing is written to `localStorage` or any backend. If persistence is
-wanted later, the natural approach is to serialize `GameBoard`'s state to
-`localStorage` on change and rehydrate it on mount.
+There is currently no save/resume for the game itself. All game state
+(`players`, `moduleState`, dice, turn index, etc.) lives in `GameBoard`'s
+React `useState`/`useRef` — a page refresh resets the game to its initial
+state. The **only** data that persists anywhere is a submitted leaderboard
+entry (above), stored remotely in Supabase; nothing is written to
+`localStorage`. If in-progress persistence is wanted later, the natural
+approach is to serialize `GameBoard`'s state to `localStorage` on change and
+rehydrate it on mount.
 
 ### Git workflow
 
@@ -218,3 +289,11 @@ prompt/options and its deck/tier.*
 their owned modules, with the highest Trust Score highlighted as the
 winner (shown here with representative sample data, since reaching a real
 end-game state requires a full playthrough).*
+
+![Submit score form](screenshots/submit-score.png)
+*With the leaderboard enabled, the human player's submit form appears once
+the reveal finishes (sample data).*
+
+![Leaderboard](screenshots/leaderboard.png)
+*The top-20 leaderboard, fetched fresh each time it opens (sample data from
+a local mock backend, not real players).*

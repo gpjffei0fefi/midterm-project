@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
+import { leaderboardEnabled } from '../lib/leaderboard'
 import PlayerCreature from './PlayerCreature'
+import SubmitScore from './SubmitScore'
+import LeaderboardScreen from './LeaderboardScreen'
 
 const MODULE_SNAP_MS = 380
 const STATS_REVEAL_DELAY_MS = 250
@@ -28,7 +31,10 @@ function ModelReveal({ players, ownedByPlayer }) {
   const [moduleCount, setModuleCount] = useState(0)
   const [revealedStats, setRevealedStats] = useState({})
   const [showWinner, setShowWinner] = useState(false)
+  const [showLeaderboard, setShowLeaderboard] = useState(false)
+  const [submittedRow, setSubmittedRow] = useState(null)
 
+  const humanPlayer = players.find((p) => !p.isAI)
   const currentId = playerIndex < ranking.length ? ranking[playerIndex] : null
   const currentModuleTotal = currentId ? (ownedByPlayer[currentId] || []).length : 0
 
@@ -135,7 +141,28 @@ function ModelReveal({ players, ownedByPlayer }) {
             )
           })}
         </div>
+
+        {showWinner && leaderboardEnabled && (
+          <div className="reveal-actions">
+            {humanPlayer && !submittedRow && (
+              <SubmitScore
+                player={humanPlayer}
+                onSubmitted={(row) => {
+                  setSubmittedRow(row)
+                  setShowLeaderboard(true)
+                }}
+              />
+            )}
+            <button type="button" className="reveal-actions__button" onClick={() => setShowLeaderboard(true)}>
+              View leaderboard
+            </button>
+          </div>
+        )}
       </div>
+
+      {showLeaderboard && (
+        <LeaderboardScreen highlightId={submittedRow?.id} onClose={() => setShowLeaderboard(false)} />
+      )}
     </div>
   )
 }

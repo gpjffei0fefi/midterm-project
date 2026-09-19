@@ -12,9 +12,10 @@ dist
 dist-ssr
 *.local
 
-# Env files
+# Env files (the .env.example template is the one exception)
 .env
 .env.*
+!.env.example
 
 # Editor directories and files
 .vscode/*
