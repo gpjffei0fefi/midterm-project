@@ -222,11 +222,15 @@ the primary accent (Roll button, active turn) and penalties. Players are blue
 ring, grey label, dashed grey chip, and a desaturated version of its art.
 Everything is defined as tokens at the top of `index.css`.
 
-**Typography.** Two families only. **Lora** (serif) is for titles and
-"moments": the game title, "Model Reveal", player names and scores in the
-reveal, the winner badge and announcement, the leaderboard title, and the
-card-back deck names. Everything functional (buttons, quiz text, panels,
-labels, numbers) is sans. Proxima Nova is a commercial font that Google Fonts
+**Typography.** Two families only, both upright (no italic faces are
+loaded). **Lora** (serif, weights 500/600/700) is for titles and "moments":
+the game title, "Model Reveal" and its winner announcement, player names and
+score numbers on the reveal, the "Winner" badge, the leaderboard title, and
+the card-back deck names. Everything functional (buttons, quiz text, panels,
+stat labels, inputs, the small "AI" tags, numbers) is sans. A serif element can
+contain functional children (the "AI" tag sits inside a serif player name on
+the reveal), so those components set their own `font-family` instead of
+inheriting. Proxima Nova is a commercial font that Google Fonts
 doesn't host, so the sans stack is `'Proxima Nova', 'Figtree', ...`: anyone
 with Proxima Nova installed gets it, and everyone else gets Figtree from
 Google Fonts. To use the real thing, license it (e.g. Adobe Fonts), load it,
@@ -245,13 +249,14 @@ on the Model Reveal creature.
 
 **Missing art never breaks the build.** Because files are globbed, a missing
 illustration just makes the lookup return `null`, and `ModuleIcon` draws the
-original CSS placeholder shape for that module/state instead. Right now that
-applies to `model-deployment-glitchy.png`, which doesn't exist yet: a glitchy
-Model Deployment shows a grey striped diamond. Dropping the file into
-`src/assets/modules/` is all it takes; no code change.
+original CSS placeholder shape for that module/state instead. Every module now
+has both a clean and a glitchy illustration (12 files) plus the chassis, so no
+placeholders appear in normal play; the fallback stays for any future module or
+state that lacks art. The most recent gap, `model-deployment-glitchy.png`,
+needed no code change once the file was added.
 
-**Image weight.** The current PNGs are 1254x1254 (0.4-1.3 MB each, about 9 MB
-total) but display at 26-70 px. It works, but smaller exports of the same
+**Image weight.** The current PNGs are 1254x1254 (0.4-1.3 MB each, about 11 MB
+total with the chassis) but display at 26-70 px. It works, but smaller exports of the same
 files (roughly 256-512 px) would load faster, especially on slower devices.
 
 ### Leaderboard (optional)
@@ -343,14 +348,15 @@ prompt/options and its deck/tier.*
 
 ![Module states](screenshots/module-states.png)
 *Module states side by side (sample data): owned and clean, glitchy (greyed
-art, dashed chip), glitchy with no illustration yet (placeholder shape), and
-an open, unowned module.*
+art and a dashed chip, including the Model Deployment rocket), and an open,
+unowned module.*
 
 ![Model Reveal](screenshots/model-reveal.png)
 *The end-of-game reveal screen — each player's creature assembled from
 their owned modules, with the highest Trust Score highlighted as the
 winner (shown here with representative sample data, since reaching a real
-end-game state requires a full playthrough).*
+end-game state requires a full playthrough). Player 2's glitchy Model
+Deployment rocket is in the bottom-right corner.*
 
 ![Submit score form](screenshots/submit-score.png)
 *With the leaderboard enabled, the human player's submit form appears once
