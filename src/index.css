@@ -1,20 +1,34 @@
 :root {
-  --navy-deep: #0b1522;
-  --navy-board: #101c2e;
-  --navy-panel: #16263d;
-  --line-faint: rgba(124, 147, 172, 0.18);
-  --line-mid: rgba(124, 147, 172, 0.35);
-  --copper: #c97a3d;
-  --copper-bright: #e8975a;
-  --circuit-green: #3fa796;
-  --amber: #e8b04b;
-  --ethics-violet: #8b7fd1;
-  --glitch-red: #c15a54;
-  --text-bright: #eaf0f5;
-  --text-muted: #7c93ac;
+  /* Base: one deep near-black, plus three slightly lifted tints of it for
+     surfaces, so the pastel accents always read against the same dark. */
+  --ink: #16121f;
+  --ink-board: #1c1829;
+  --ink-panel: #252034;
+  --line-faint: rgba(200, 190, 235, 0.14);
+  --line-mid: rgba(200, 190, 235, 0.3);
+  --grid-line: rgba(200, 190, 235, 0.06);
 
-  --sans: 'Space Grotesk', system-ui, sans-serif;
-  --mono: 'JetBrains Mono', ui-monospace, Consolas, monospace;
+  /* Accents. Roles: pink = primary accent + penalties, blue = math /
+     technical / info, yellow = neutral spaces + highlights + winner,
+     green = ethics / responsible / clean / success. */
+  --pink: #ff9ecb;
+  --pink-bright: #ffc0dc;
+  --blue: #9be7ff;
+  --yellow: #fff3b0;
+  --green: #b4ff9f;
+
+  /* Degraded (glitchy) state: the accents drained to a flat grey. */
+  --ghost: #8c86a0;
+
+  --text-bright: #f5f1fb;
+  --text-muted: #a8a2bc;
+
+  /* Lora for titles and "moments", sans for everything functional.
+     Proxima Nova is a commercial font that Google Fonts doesn't host, so it
+     leads the stack for anyone who has it, with Figtree (Google Fonts) as
+     the hosted stand-in. */
+  --serif: 'Lora', Georgia, 'Times New Roman', serif;
+  --sans: 'Proxima Nova', 'Figtree', system-ui, -apple-system, 'Segoe UI', sans-serif;
 
   color-scheme: dark;
   font-family: var(--sans);
@@ -32,11 +46,12 @@ body {
   margin: 0;
   min-height: 100svh;
   color: var(--text-bright);
-  background: var(--navy-deep);
+  background: var(--ink);
   background-image:
-    linear-gradient(var(--line-faint) 1px, transparent 1px),
-    linear-gradient(90deg, var(--line-faint) 1px, transparent 1px);
+    linear-gradient(var(--grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
   background-size: 32px 32px;
+  font-variant-numeric: tabular-nums;
 }
 
 #root {
@@ -44,7 +59,8 @@ body {
 }
 
 h1, h2, h3 {
-  font-family: var(--sans);
+  font-family: var(--serif);
+  word-spacing: -0.06em;
   margin: 0;
 }
 

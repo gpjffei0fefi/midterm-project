@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { leaderboardEnabled } from '../lib/leaderboard'
+import { chassisArt, moduleArt, preloadImages } from '../data/moduleArt'
 import PlayerCreature from './PlayerCreature'
 import SubmitScore from './SubmitScore'
 import LeaderboardScreen from './LeaderboardScreen'
@@ -26,6 +27,7 @@ function ModelReveal({ players, ownedByPlayer }) {
     [players]
   )
   const winnerId = ranking[ranking.length - 1]
+  const winner = players.find((p) => p.id === winnerId)
 
   const [playerIndex, setPlayerIndex] = useState(0)
   const [moduleCount, setModuleCount] = useState(0)
@@ -34,8 +36,27 @@ function ModelReveal({ players, ownedByPlayer }) {
   const [showLeaderboard, setShowLeaderboard] = useState(false)
   const [submittedRow, setSubmittedRow] = useState(null)
 
+  // Hold the sequence until every image it needs is decoded, so each piece
+  // snaps in as a finished picture instead of popping in late.
+  const [artReady, setArtReady] = useState(false)
+  const artKey = [
+    chassisArt,
+    ...players.flatMap((p) => (ownedByPlayer[p.id] || []).map((m) => moduleArt(m.label, m.state))),
+  ]
+    .filter(Boolean)
+    .join('|')
+  useEffect(() => {
+    let cancelled = false
+    preloadImages([...new Set(artKey ? artKey.split('|') : [])]).then(() => {
+      if (!cancelled) setArtReady(true)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [artKey])
+
   const humanPlayer = players.find((p) => !p.isAI)
-  const currentId = playerIndex < ranking.length ? ranking[playerIndex] : null
+  const currentId = artReady && playerIndex < ranking.length ? ranking[playerIndex] : null
   const currentModuleTotal = currentId ? (ownedByPlayer[currentId] || []).length : 0
 
   // Snap the active player's modules into place one at a time.
@@ -84,6 +105,9 @@ function ModelReveal({ players, ownedByPlayer }) {
         <div className="model-reveal__header">
           <span className="model-reveal__eyebrow">Game over — every module has an owner</span>
           <h1 className="model-reveal__title">Model Reveal</h1>
+          <p className={`model-reveal__announcement${showWinner ? ' model-reveal__announcement--shown' : ''}`} aria-live="polite">
+            {showWinner && `${winner.name} wins with a Trust Score of ${totalTrust(winner)}.`}
+          </p>
         </div>
 
         <div className="model-reveal__players">

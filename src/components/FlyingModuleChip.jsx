@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { FLY_DURATION_MS } from '../constants/timing'
+import ModuleIcon from './ModuleIcon'
 
 function FlyingModuleChip({ flight }) {
   const [phase, setPhase] = useState('start')
@@ -26,6 +27,9 @@ function FlyingModuleChip({ flight }) {
         transitionDuration: `${FLY_DURATION_MS}ms`,
       }}
     >
+      <span className="flying-module__icon">
+        <ModuleIcon label={flight.label} ethicsWeight={flight.ethicsWeight} state="clean" />
+      </span>
       {flight.code}
     </div>
   )

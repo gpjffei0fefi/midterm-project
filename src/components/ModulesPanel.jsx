@@ -1,3 +1,5 @@
+import ModuleIcon from './ModuleIcon'
+
 function ModulesPanel({ players, ownedByPlayer, registerPanelRef }) {
   return (
     <div className="modules-panel">
@@ -18,8 +20,11 @@ function ModulesPanel({ players, ownedByPlayer, registerPanelRef }) {
                 <span
                   key={mod.id}
                   className={`module-chip module-chip--${mod.state}${mod.ethicsWeight > 0 ? ' module-chip--responsible' : ' module-chip--performance'}`}
-                  title={`${mod.label} — ${mod.state}`}
+                  title={`${mod.label}, ${mod.state}`}
                 >
+                  <span className="module-chip__icon">
+                    <ModuleIcon label={mod.label} ethicsWeight={mod.ethicsWeight} state={mod.state} />
+                  </span>
                   {mod.code}
                 </span>
               ))

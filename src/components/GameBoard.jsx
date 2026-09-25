@@ -187,6 +187,8 @@ function GameBoard() {
       setFlyingModule({
         key: `${tile.id}-${Date.now()}`,
         code: tile.code,
+        label: tile.label,
+        ethicsWeight: tile.ethicsWeight,
         accent: tile.ethicsWeight > 0 ? 'responsible' : 'performance',
         fromRect: fromNode.getBoundingClientRect(),
         toRect: toNode.getBoundingClientRect(),

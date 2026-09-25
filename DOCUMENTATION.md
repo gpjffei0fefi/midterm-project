@@ -30,7 +30,7 @@ committed `.env.example` template.
 ## File & folder structure
 
 ```
-index.html                  Vite entry HTML; loads Google Fonts (Space Grotesk, JetBrains Mono)
+index.html                  Vite entry HTML; loads Google Fonts (Lora, Figtree)
 vite.config.js               Vite + React plugin config
 .oxlintrc.json                Lint rules (React hooks correctness, etc.)
 .env.example                  Template for the optional leaderboard's two env vars (copy to .env.local)
@@ -42,16 +42,22 @@ src/
   main.jsx                    React root render
   App.jsx                     Top-level layout: <GameBoard /> + <QuizDeckSystem />, plus the
                                standalone "View leaderboard" button when the leaderboard is enabled
-  index.css                   CSS custom-property palette, global reset, fonts
-  App.css                     All component styles (single stylesheet, one file per concern
-                               marked off with comment banners — board, tiles, tokens, control
-                               panel, trust panel, deck tray, quiz card, model reveal, creature…)
+  index.css                   Design tokens (palette, fonts) as CSS custom properties, global reset
+  App.css                     All component styles (single stylesheet, sections marked off with
+                               comment banners: board, tiles, module art, tokens, control panel,
+                               trust panel, deck tray, quiz card, model reveal, creature...)
+
+  assets/
+    modules/                   Module illustrations: <module-slug>-clean.png / -glitchy.png
+    creature/                  chassis-base.png, the robot body the modules mount onto
 
   data/
     boardData.js               TILES (the 16-space board loop) and INITIAL_PLAYERS
     quizCards.js                Card deck generator — produces MATH_CARDS / ETHICS_CARDS
     gameRules.js                 Tunable balance constants (trust bonuses/penalties, AI odds)
-    creatureParts.js              Maps each module type to a Model Reveal body-part slot
+    creatureParts.js              Where each module mounts on the chassis + snap-in order
+    moduleArt.js                   Finds the illustration for a module/state by filename (see
+                                    "Visual design & assets"); also preloads/decodes images
 
   constants/
     timing.js                   All animation/pacing durations in one place (ms)
@@ -64,11 +70,13 @@ src/
 
   components/
     GameBoard.jsx                The orchestrator: owns all game state and turn/quiz/trust logic
-    Tile.jsx                     One board space (renders tokens, ownership marker, glitch state)
+    Tile.jsx                     One board space (module art, tokens, ownership ring, glitch state)
     PlayerToken.jsx               A player's colored marker on the board, with hop animation
     ControlPanel.jsx               Dice + Roll button + whose-turn indicator
     Dice.jsx                       The digital die readout
     TrustPanel.jsx                 Live per-player Trust Score + 3-axis bar breakdown
+    ModuleIcon.jsx                   A module's illustration in its current state (or the CSS
+                                      placeholder shape if that image doesn't exist yet)
     ModulesPanel.jsx                Per-player list of owned module chips (clean/glitchy)
     FlyingModuleChip.jsx             The "module flies from tile to panel" acquisition animation
     LandingQuiz.jsx                  The auto-flow quiz overlay used during actual gameplay
@@ -78,8 +86,7 @@ src/
                                        of board play — the two Math/Ethics deck buttons under the board
     ModelReveal.jsx                   End-of-game screen: builds each player's creature, then
                                        highlights the Trust Score winner
-    PlayerCreature.jsx                 Lays one player's owned modules into head/torso/base rows
-    CreaturePart.jsx                    One placeholder module-shape (clean or glitchy)
+    PlayerCreature.jsx                 Draws the chassis and mounts each owned module on it
     SubmitScore.jsx                    Name field + submit button shown under the finished reveal
     LeaderboardScreen.jsx               Full-screen top-20 list; re-fetches every time it opens
 
@@ -188,14 +195,64 @@ module has to actually be acquired). Once `gameOver` is true, rolling stops
 `ModelReveal` renders as a full-screen overlay.
 
 The reveal sorts players **ascending by total Trust Score** and builds
-each one's creature (via `PlayerCreature.jsx` / `CreaturePart.jsx`) one
-module at a time, base-to-head, with a "snap into place" animation, then
-shows that player's score and 3-axis bars before moving to the next
-player — saving the highest score for last. Once everyone's revealed, the
-top-scoring player gets a highlighted "Winner" badge. **Module count has no
+each one's creature one module at a time, with a "snap into place"
+animation, then shows that player's score and 3-axis bars before moving to
+the next player — saving the highest score for last. A creature is the
+chassis illustration with each owned module's illustration mounted at its own
+point on it (`creatureParts.js`: Explainability Layer on the face screen,
+Compute Cluster on the chest, Bias Audit and Privacy Filter on the arms, Data
+Pipeline and Model Deployment in the bottom corners); pieces land base-first.
+Two copies of the same module type share one mount point, nudged apart. The
+sequence waits until every image it needs is decoded so each snap is a
+finished picture. Once everyone's revealed, the top-scoring player gets a
+highlighted "Winner" badge and a serif announcement line. **Module count has no
 bearing on the win condition** — only the final Trust Score does. When the
 leaderboard is enabled, the human player's submit form and a "View
 leaderboard" button appear beneath the cards once the winner is shown.
+
+### Visual design & assets (`index.css`, `App.css`, `data/moduleArt.js`)
+
+**Palette.** `#16121f` is the dominant dark base (page, panels, and overlays are
+that color or slightly lifted tints of it), with four pastel accents that each
+carry a meaning: **green `#b4ff9f`** = ethics / responsible / clean / correct,
+**blue `#9be7ff`** = math / technical / accuracy, **yellow `#fff3b0`** =
+neutral spaces, transparency, highlights and the winner, **pink `#ff9ecb`** =
+the primary accent (Roll button, active turn) and penalties. Players are blue
+(you), pink, and yellow. A **glitchy** module drains to a flat grey: grey
+ring, grey label, dashed grey chip, and a desaturated version of its art.
+Everything is defined as tokens at the top of `index.css`.
+
+**Typography.** Two families only. **Lora** (serif) is for titles and
+"moments": the game title, "Model Reveal", player names and scores in the
+reveal, the winner badge and announcement, the leaderboard title, and the
+card-back deck names. Everything functional (buttons, quiz text, panels,
+labels, numbers) is sans. Proxima Nova is a commercial font that Google Fonts
+doesn't host, so the sans stack is `'Proxima Nova', 'Figtree', ...`: anyone
+with Proxima Nova installed gets it, and everyone else gets Figtree from
+Google Fonts. To use the real thing, license it (e.g. Adobe Fonts), load it,
+and it takes over with no other change. To swap the stand-in, edit `--sans`
+and the Google Fonts `<link>` in `index.html`.
+
+**Illustrations.** Module art is looked up **by filename**, never hard-coded:
+`moduleArt.js` globs `src/assets/modules/*.png` and matches
+`<module-slug>-clean.png` and `<module-slug>-glitchy.png`, where the slug is
+the module's label lowercased with dashes (`Bias Audit` becomes `bias-audit`).
+A `-glitch` suffix is accepted too, because `data-pipeline-glitch.png` is
+spelled that way. The chassis is `src/assets/creature/chassis-base.png`. The art
+appears on board tiles (swapping to the glitchy version when a module is
+flagged), in the owned-modules chips, on the flying acquisition animation, and
+on the Model Reveal creature.
+
+**Missing art never breaks the build.** Because files are globbed, a missing
+illustration just makes the lookup return `null`, and `ModuleIcon` draws the
+original CSS placeholder shape for that module/state instead. Right now that
+applies to `model-deployment-glitchy.png`, which doesn't exist yet: a glitchy
+Model Deployment shows a grey striped diamond. Dropping the file into
+`src/assets/modules/` is all it takes; no code change.
+
+**Image weight.** The current PNGs are 1254x1254 (0.4-1.3 MB each, about 9 MB
+total) but display at 26-70 px. It works, but smaller exports of the same
+files (roughly 256-512 px) would load faster, especially on slower devices.
 
 ### Leaderboard (optional)
 
@@ -274,8 +331,8 @@ history rewrites, and pushes to remote still require an explicit ask.
 ## Current UI
 
 ![Board](screenshots/board.png)
-*The board mid-game: 16-tile loop, live dice/turn control, and the Trust
-Score panel.*
+*The board mid-game: 16-tile loop, illustrated modules with owner-colored
+rings, live dice/turn control, and the Trust Score panel.*
 
 ![Card draw in progress](screenshots/card-draw.png)
 *A quiz card flipped face-up during a landing, showing the placeholder
@@ -283,6 +340,11 @@ prompt/options and its deck/tier.*
 
 ![Trust Score breakdown](screenshots/trust-breakdown.png)
 *The live per-player Accuracy / Fairness / Transparency bars.*
+
+![Module states](screenshots/module-states.png)
+*Module states side by side (sample data): owned and clean, glitchy (greyed
+art, dashed chip), glitchy with no illustration yet (placeholder shape), and
+an open, unowned module.*
 
 ![Model Reveal](screenshots/model-reveal.png)
 *The end-of-game reveal screen — each player's creature assembled from
