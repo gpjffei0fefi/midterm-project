@@ -770,8 +770,8 @@ input:focus-visible {
 /* -------------------------------------------------- quiz card -------------------------------------------------- */
 
 .quiz-card-scene {
-  width: min(320px, 84vw);
-  height: 420px;
+  width: min(400px, 90vw);
+  height: min(540px, 90svh);
   perspective: 1400px;
 }
 
@@ -857,20 +857,18 @@ input:focus-visible {
 
 .quiz-card__prompt {
   flex: 1;
+  min-height: 0;
+  overflow-y: auto;
   display: flex;
   align-items: center;
-  font-size: 15.5px;
+  font-size: 16px;
   line-height: 1.45;
   color: var(--text-bright);
 }
 
-.quiz-card__placeholder {
-  font-style: italic;
-  color: var(--text-muted);
-  border: 1px dashed var(--line-mid);
-  border-radius: 8px;
-  padding: 10px 12px;
-  width: 100%;
+/* margin:auto centres short prompts but lets long ones scroll from the top. */
+.quiz-card__prompt > * {
+  margin: auto 0;
 }
 
 .quiz-card__options {
@@ -885,12 +883,12 @@ input:focus-visible {
   gap: 10px;
   text-align: left;
   font-family: var(--sans);
-  font-size: 13px;
+  font-size: 13.5px;
   color: var(--text-bright);
   background: var(--ink-panel);
   border: 1px solid var(--line-faint);
   border-radius: 8px;
-  padding: 9px 11px;
+  padding: 10px 12px;
   cursor: pointer;
   transition: border-color 0.15s ease, background 0.15s ease;
 }
@@ -929,9 +927,8 @@ input:focus-visible {
   flex-shrink: 0;
 }
 
-.quiz-card__option-text em {
-  font-style: italic;
-  color: var(--text-muted);
+.quiz-card__option-text {
+  line-height: 1.35;
 }
 
 /* -------------------------------------------------- quiz resolution cues -------------------------------------------------- */
@@ -1549,5 +1546,239 @@ input:focus-visible {
   .reveal-card,
   .model-reveal__announcement {
     transition: none;
+  }
+}
+
+/* -------------------------------------------------- restored game -------------------------------------------------- */
+
+/* The wrapper adds no box of its own, so layout is identical to before. */
+.game {
+  display: contents;
+}
+
+/* A resumed game renders with every transition and animation off for a beat,
+   so tokens, bars and chips appear where they belong instead of moving there. */
+.game--settling *,
+.game--settling *::before,
+.game--settling *::after {
+  transition: none !important;
+  animation: none !important;
+}
+
+/* -------------------------------------------------- intro screens -------------------------------------------------- */
+
+.intro {
+  min-height: 100svh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+}
+
+.intro__panel {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  padding: 32px 28px;
+  text-align: center;
+  background: var(--ink-board);
+  border: 1px solid var(--line-mid);
+  border-radius: 16px;
+  box-shadow: 0 30px 60px -30px rgba(0, 0, 0, 0.7);
+}
+
+.intro__panel--start { max-width: 520px; }
+.intro__panel--name { max-width: 420px; }
+.intro__panel--mechanics { max-width: 860px; gap: 14px; padding: 26px 28px; }
+
+.intro__eyebrow {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.intro__title {
+  font-size: clamp(34px, 6vw, 48px);
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--pink);
+}
+
+.intro__title--small {
+  font-size: clamp(26px, 4vw, 32px);
+  color: var(--text-bright);
+}
+
+.intro__lead {
+  max-width: 52ch;
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--text-bright);
+}
+
+.intro__button {
+  font-family: var(--sans);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ink);
+  background: var(--pink);
+  border: 1px solid var(--pink);
+  border-radius: 10px;
+  padding: 11px 32px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.intro__button:hover {
+  background: var(--pink-bright);
+}
+
+.intro__button--ghost {
+  color: var(--text-bright);
+  background: transparent;
+  border-color: var(--line-mid);
+}
+
+.intro__button--ghost:hover {
+  background: var(--ink-panel);
+  border-color: var(--pink);
+}
+
+.intro__field {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-align: left;
+}
+
+.intro__label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.intro__input {
+  font-family: var(--sans);
+  font-size: 16px;
+  color: var(--text-bright);
+  background: var(--ink-panel);
+  border: 1px solid var(--line-mid);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.mechanics {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin: 4px 0 6px;
+  text-align: left;
+}
+
+.mechanics__card {
+  --accent: var(--pink);
+  padding: 14px 16px 14px;
+  background: var(--ink-panel);
+  border: 1px solid var(--line-faint);
+  border-top: 3px solid var(--accent);
+  border-radius: 10px;
+}
+
+.mechanics__card--pink { --accent: var(--pink); }
+.mechanics__card--yellow { --accent: var(--yellow); }
+.mechanics__card--green { --accent: var(--green); }
+.mechanics__card--blue { --accent: var(--blue); }
+
+.mechanics__heading {
+  margin-bottom: 8px;
+  font-size: 19px;
+  color: var(--accent);
+}
+
+.mechanics ul {
+  margin: 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--text-bright);
+}
+
+.mechanics li::marker {
+  color: var(--accent);
+}
+
+.mechanics__chip {
+  display: inline-block;
+  padding: 0 7px;
+  font-size: 12px;
+  font-weight: 700;
+  border-radius: 999px;
+  border: 1px solid currentColor;
+}
+
+.mechanics__chip--clean { color: var(--green); }
+.mechanics__chip--glitchy { color: var(--ghost); }
+
+.resume-prompt {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(22, 18, 31, 0.78);
+}
+
+.resume-prompt__box {
+  width: min(360px, 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 24px;
+  text-align: center;
+  background: var(--ink-panel);
+  border: 1px solid var(--line-mid);
+  border-radius: 14px;
+}
+
+.resume-prompt__title {
+  font-size: 24px;
+}
+
+.resume-prompt__text {
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+.resume-prompt__actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.reveal-actions__button--primary {
+  color: var(--ink);
+  background: var(--pink);
+  border-color: var(--pink);
+}
+
+.reveal-actions__button--primary:hover {
+  background: var(--pink-bright);
+}
+
+@media (max-width: 640px) {
+  .mechanics {
+    grid-template-columns: 1fr;
   }
 }

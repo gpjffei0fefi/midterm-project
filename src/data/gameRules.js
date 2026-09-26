@@ -21,3 +21,9 @@ export const AI_CORRECT_PROBABILITY_BY_TIER = {
   2: 0.5,
   3: 0.3,
 }
+
+// The game ends at the close of the first full round (everyone has had the same
+// number of turns) in which any player has completed this many laps, or as soon
+// as every module has an owner, whichever comes first. A lap is completed each
+// time a token reaches or passes START.
+export const LAPS_TO_WIN = 3

@@ -24,11 +24,7 @@ function QuizCard({ card, flipped, selectedOption, onSelectOption, resolution, i
           </div>
 
           <div className="quiz-card__prompt">
-            {card.prompt ? (
-              card.prompt
-            ) : (
-              <span className="quiz-card__placeholder">Question not yet written</span>
-            )}
+            <span>{card.prompt}</span>
           </div>
 
           <div className={`quiz-card__options${locked ? ' quiz-card__options--locked' : ''}`}>
@@ -50,9 +46,7 @@ function QuizCard({ card, flipped, selectedOption, onSelectOption, resolution, i
                   disabled={locked}
                 >
                   <span className="quiz-card__option-letter">{String.fromCharCode(65 + i)}</span>
-                  <span className="quiz-card__option-text">
-                    {option ? option : <em>empty option</em>}
-                  </span>
+                  <span className="quiz-card__option-text">{option}</span>
                 </button>
               )
             })}

@@ -23,12 +23,11 @@
   --text-bright: #f5f1fb;
   --text-muted: #a8a2bc;
 
-  /* Lora for titles and "moments", sans for everything functional.
-     Proxima Nova is a commercial font that Google Fonts doesn't host, so it
-     leads the stack for anyone who has it, with Figtree (Google Fonts) as
-     the hosted stand-in. */
+  /* Lora for titles and "moments", Figtree for everything functional. Both
+     are hosted by Google Fonts (see index.html). Figtree is the final body
+     font, not a stand-in: Proxima Nova is commercial and isn't hosted there. */
   --serif: 'Lora', Georgia, 'Times New Roman', serif;
-  --sans: 'Proxima Nova', 'Figtree', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --sans: 'Figtree', system-ui, -apple-system, 'Segoe UI', sans-serif;
 
   color-scheme: dark;
   font-family: var(--sans);

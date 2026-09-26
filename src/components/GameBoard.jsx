@@ -10,6 +10,7 @@ import {
   NEUTRAL_PENALTY,
   LANDING_FEE_MULTIPLIER,
   AI_CORRECT_PROBABILITY_BY_TIER,
+  LAPS_TO_WIN,
 } from '../data/gameRules'
 import {
   ROLL_TICK_MS,
@@ -24,6 +25,7 @@ import {
   AI_THINK_MS,
 } from '../constants/timing'
 import { sleep } from '../utils/sleep'
+import { saveGame, clearSavedGame } from '../lib/saveGame'
 import Tile from './Tile'
 import TrustPanel from './TrustPanel'
 import ControlPanel from './ControlPanel'
@@ -56,14 +58,32 @@ function rollAICorrectness(tier) {
   return Math.random() < probability
 }
 
-function GameBoard() {
-  const [players, setPlayers] = useState(INITIAL_PLAYERS)
-  const [currentPlayerIndex, setCurrentPlayerIndex] = useState(0)
-  const [diceValue, setDiceValue] = useState(1)
+// Once the AI's outcome is decided, it "picks" an option that produces it, so
+// the card shows a real selection: the right answer, or a random wrong one.
+function pickOptionForOutcome(card, isCorrect) {
+  if (isCorrect) return card.correctIndex
+  const wrong = card.options.map((_, i) => i).filter((i) => i !== card.correctIndex)
+  return wrong[Math.floor(Math.random() * wrong.length)]
+}
+
+function freshPlayers(playerName) {
+  return INITIAL_PLAYERS.map((p) => (p.id === 'p1' && playerName ? { ...p, name: playerName } : p))
+}
+
+// playerName: what Player 1 is called (from the name-entry screen).
+// initialSave: a saved game to restore, or null for a new one.
+// onPlayAgain: called from the Model Reveal to start a fresh game.
+function GameBoard({ playerName, initialSave, onPlayAgain }) {
+  const [players, setPlayers] = useState(() => initialSave?.players ?? freshPlayers(playerName))
+  const [currentPlayerIndex, setCurrentPlayerIndex] = useState(initialSave?.currentPlayerIndex ?? 0)
+  const [turns, setTurns] = useState(initialSave?.turns ?? 0)
+  const [endReason, setEndReason] = useState(null)
+  const [settling, setSettling] = useState(Boolean(initialSave))
+  const [diceValue, setDiceValue] = useState(initialSave?.diceValue ?? 1)
   const [isRolling, setIsRolling] = useState(false)
   const [isMoving, setIsMoving] = useState(false)
   const [landingTileId, setLandingTileId] = useState(null)
-  const [moduleState, setModuleState] = useState(initialModuleState)
+  const [moduleState, setModuleState] = useState(() => initialSave?.moduleState ?? initialModuleState())
   const [activeQuiz, setActiveQuiz] = useState(null)
   const [flyingModule, setFlyingModule] = useState(null)
   const [trustDeltas, setTrustDeltas] = useState({})
@@ -149,12 +169,8 @@ function GameBoard() {
         setActiveQuiz((q) => (q ? { ...q, flipped: true } : q))
         if (isAI) {
           setTimeout(() => {
-            const optionIndex = Math.floor(Math.random() * card.options.length)
-            const isCorrect =
-              card.correctIndex === null
-                ? rollAICorrectness(card.difficultyTier)
-                : optionIndex === card.correctIndex
-            finishQuiz(optionIndex, isCorrect, describeResult)
+            const isCorrect = rollAICorrectness(card.difficultyTier)
+            finishQuiz(pickOptionForOutcome(card, isCorrect), isCorrect, describeResult)
           }, AI_THINK_MS)
         }
       }, FLIP_DELAY_MS)
@@ -175,8 +191,7 @@ function GameBoard() {
   function handleSelectOption(index) {
     if (!activeQuiz || activeQuiz.selectedOption !== null || activeQuiz.isAI) return
     const { card, describeResult } = activeQuiz
-    const isCorrect = card.correctIndex === null ? Math.random() < 0.5 : index === card.correctIndex
-    finishQuiz(index, isCorrect, describeResult)
+    finishQuiz(index, index === card.correctIndex, describeResult)
   }
 
   async function flyModuleToPanel(tile, playerId) {
@@ -290,8 +305,13 @@ function GameBoard() {
     for (let step = 0; step < finalRoll; step++) {
       position = (position + 1) % TILES.length
       const nextPosition = position
+      const completedLap = nextPosition === 0
       setPlayers((prev) =>
-        prev.map((p) => (p.id === movingPlayerId ? { ...p, position: nextPosition } : p))
+        prev.map((p) =>
+          p.id === movingPlayerId
+            ? { ...p, position: nextPosition, laps: completedLap ? (p.laps ?? 0) + 1 : p.laps }
+            : p
+        )
       )
       await sleep(STEP_PAUSE_MS)
     }
@@ -303,6 +323,9 @@ function GameBoard() {
     const landedTile = TILES.find((t) => t.id === position)
     await resolveLanding(landedTile, movingPlayerId)
 
+    // These land in one batch, so the end-of-turn effect below sees the
+    // finished turn: new player, new turn count, final scores and ownership.
+    setTurns((t) => t + 1)
     setIsMoving(false)
     setCurrentPlayerIndex((prev) => (prev + 1) % players.length)
   }
@@ -316,12 +339,31 @@ function GameBoard() {
     return () => clearTimeout(timer)
   }, [currentPlayerIndex, gameOver])
 
-  // The game ends the moment every module tile has an owner.
+  // Runs once each turn has fully resolved (and on mount). Ends the game if a
+  // condition is met, otherwise saves the state so it can be resumed.
   useEffect(() => {
-    if (Object.values(moduleState).every((m) => m.owner !== null)) {
+    if (isMoving || gameOver) return
+    const allOwned = Object.values(moduleState).every((m) => m.owner !== null)
+    const roundComplete = turns > 0 && currentPlayerIndex === 0
+    const lapsDone = roundComplete && players.some((p) => (p.laps ?? 0) >= LAPS_TO_WIN)
+    if (allOwned || lapsDone) {
+      setEndReason(allOwned ? 'modules' : 'laps')
       setGameOver(true)
+      clearSavedGame()
+    } else if (turns > 0) {
+      saveGame({ players, currentPlayerIndex, turns, diceValue, moduleState })
     }
-  }, [moduleState])
+    // Deliberately keyed on isMoving only: it flips false exactly when a turn ends.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isMoving])
+
+  // A restored game renders with transitions off for a beat, so tokens, bars
+  // and chips appear in place instead of animating in from empty.
+  useEffect(() => {
+    if (!settling) return
+    const timer = setTimeout(() => setSettling(false), 250)
+    return () => clearTimeout(timer)
+  }, [settling])
 
   const ownedByPlayer = players.reduce((acc, p) => {
     acc[p.id] = TILES.filter((t) => t.type === 'module' && moduleState[t.id]?.owner === p.id).map((t) => ({
@@ -335,7 +377,7 @@ function GameBoard() {
   }, {})
 
   return (
-    <>
+    <div className={`game${settling ? ' game--settling' : ''}`}>
       <div className="board-frame">
         <div className="board">
           {TILES.map((tile) => {
@@ -356,7 +398,7 @@ function GameBoard() {
 
           <div className="board__center">
             <div className="title-plate">
-              <span className="title-plate__eyebrow">Prototype v0.1</span>
+              <span className="title-plate__eyebrow">Lap {Math.min(LAPS_TO_WIN, Math.max(...players.map((p) => p.laps ?? 0)) + 1)} of {LAPS_TO_WIN}</span>
               <h1 className="title-plate__name">Build-A-Brain Co.</h1>
             </div>
             <ControlPanel
@@ -375,8 +417,16 @@ function GameBoard() {
 
       {activeQuiz && <LandingQuiz quiz={activeQuiz} onSelectOption={handleSelectOption} />}
       {flyingModule && <FlyingModuleChip flight={flyingModule} />}
-      {gameOver && <ModelReveal players={players} ownedByPlayer={ownedByPlayer} />}
-    </>
+      {gameOver && (
+        <ModelReveal
+          players={players}
+          ownedByPlayer={ownedByPlayer}
+          endReason={endReason}
+          lapsToWin={LAPS_TO_WIN}
+          onPlayAgain={onPlayAgain}
+        />
+      )}
+    </div>
   )
 }
 

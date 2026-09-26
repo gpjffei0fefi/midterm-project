@@ -31,7 +31,7 @@ export const TILES = [
 // Player 1 is human-controlled; Players 2-3 are AI opponents (see
 // GameBoard's auto-roll effect and the AI answer-probability logic).
 export const INITIAL_PLAYERS = [
-  { id: 'p1', name: 'Player 1', color: '#9be7ff', position: 0, accuracy: 26, fairness: 23, transparency: 23, isAI: false },
-  { id: 'p2', name: 'Player 2', color: '#ff9ecb', position: 0, accuracy: 20, fairness: 19, transparency: 19, isAI: true },
-  { id: 'p3', name: 'Player 3', color: '#fff3b0', position: 0, accuracy: 29, fairness: 28, transparency: 28, isAI: true },
+  { id: 'p1', name: 'Player 1', color: '#9be7ff', position: 0, accuracy: 26, fairness: 23, transparency: 23, isAI: false, laps: 0 },
+  { id: 'p2', name: 'Player 2', color: '#ff9ecb', position: 0, accuracy: 20, fairness: 19, transparency: 19, isAI: true, laps: 0 },
+  { id: 'p3', name: 'Player 3', color: '#fff3b0', position: 0, accuracy: 29, fairness: 28, transparency: 28, isAI: true, laps: 0 },
 ]

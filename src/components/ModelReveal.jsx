@@ -20,7 +20,7 @@ function totalTrust(player) {
   return player.accuracy + player.fairness + player.transparency
 }
 
-function ModelReveal({ players, ownedByPlayer }) {
+function ModelReveal({ players, ownedByPlayer, endReason, lapsToWin, onPlayAgain }) {
   // Reveal order: lowest Trust Score first, winner revealed last.
   const ranking = useMemo(
     () => [...players].sort((a, b) => totalTrust(a) - totalTrust(b)).map((p) => p.id),
@@ -103,7 +103,11 @@ function ModelReveal({ players, ownedByPlayer }) {
     <div className="model-reveal">
       <div className="model-reveal__content">
         <div className="model-reveal__header">
-          <span className="model-reveal__eyebrow">Game over — every module has an owner</span>
+          <span className="model-reveal__eyebrow">
+            {endReason === 'modules'
+              ? 'Game over — every module has an owner'
+              : `Game over — ${lapsToWin} laps completed`}
+          </span>
           <h1 className="model-reveal__title">Model Reveal</h1>
           <p className={`model-reveal__announcement${showWinner ? ' model-reveal__announcement--shown' : ''}`} aria-live="polite">
             {showWinner && `${winner.name} wins with a Trust Score of ${totalTrust(winner)}.`}
@@ -166,9 +170,9 @@ function ModelReveal({ players, ownedByPlayer }) {
           })}
         </div>
 
-        {showWinner && leaderboardEnabled && (
+        {showWinner && (
           <div className="reveal-actions">
-            {humanPlayer && !submittedRow && (
+            {leaderboardEnabled && humanPlayer && !submittedRow && (
               <SubmitScore
                 player={humanPlayer}
                 onSubmitted={(row) => {
@@ -177,8 +181,13 @@ function ModelReveal({ players, ownedByPlayer }) {
                 }}
               />
             )}
-            <button type="button" className="reveal-actions__button" onClick={() => setShowLeaderboard(true)}>
-              View leaderboard
+            {leaderboardEnabled && (
+              <button type="button" className="reveal-actions__button" onClick={() => setShowLeaderboard(true)}>
+                View leaderboard
+              </button>
+            )}
+            <button type="button" className="reveal-actions__button reveal-actions__button--primary" onClick={onPlayAgain}>
+              Play Again
             </button>
           </div>
         )}
