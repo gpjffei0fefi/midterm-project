@@ -16,25 +16,29 @@
 - **Play Again lost the player's name after a resumed game** (it fell back to "Player 1"). Found while testing the live flow; fixed by taking the name from the saved human player on resume.
 - Browser automation timed out on a couple of long scripted playthroughs (45 s tool limit); reran them as short background loops. No app bug.
 
+## Leaderboard go-live (later the same day)
+- The Supabase table was created by running `supabase/leaderboard.sql` in the dashboard (the publishable key can't create tables).
+- Real submit and fetch tested locally, then on the live site. The first live submit **failed**: the Vercel env values had been added through PowerShell's pipe, which put an invisible BOM at the start of each, and the browser rejects headers containing it. Re-added both values from bash, redeployed, and the live submit and fetch then worked.
+
 ## Decisions made
 - **Laps rule:** the brief assumed laps existed but the game only ended when every module was owned. I chose 3 laps, ending at the end of a full round so every player gets the same number of turns, plus the early end when all modules are claimed.
 - **Play Again skips the intro** and starts straight away with the same name.
-- **Leaderboard shipped disabled** (see below) rather than half-tested.
-- The leaderboard and submit-score screenshots were removed; those screens don't exist in the deployed build.
+- **Leaderboard** first shipped disabled rather than half-tested; it was turned on later the same day once a real Supabase project and keys were available (see below).
+- Leaderboard screenshot retaken from the live site (the submit-form screenshot was dropped).
 
 ## Known limitations
-- **Leaderboard is off in production.** No real Supabase project/keys were available, and the code has only been tested against a local mock. To enable: create the project, run `supabase/leaderboard.sql`, set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` in Vercel, redeploy.
+- **Three test leaderboard rows** ("TEST - delete me", "TEST 2 - delete me", "TEST 3 - delete me") are in the Supabase table from the real-backend checks. The anon key cannot delete rows, so remove them in the Supabase Table Editor.
 - Not phone-optimised (board needs ~620 px width).
 - Hosted on Vercel under the `sikhay1` Vercel team (display name "Sikhay"), at https://build-a-brain-co.vercel.app.
 - Stray 6-byte file `C:\HENRYG~1\placeholder.txt` from an earlier mistake is still there (the environment blocks deleting it); harmless and outside the repo.
 
 ## Next session
-- Create the Supabase project and turn the leaderboard on with a real test.
+- Delete the test leaderboard rows.
 - Optionally make the layout phone-friendly.
 
 ## Completion status
 - **Done:** board; dice and movement; real quiz content; turn resolution; Trust Score; AI opponents; laps and game end; Model Reveal; intro/mechanics/name flow; save/resume; Play Again; typography (Figtree final); optimised art; deployment.
-- **Built, disabled:** shared leaderboard (needs a real backend).
+- **Leaderboard:** live and verified against a real Supabase project (local and deployed).
 - **Git status:** everything committed and pushed to `origin/master` with this report.
 
 ## Screenshots (from the deployed site)

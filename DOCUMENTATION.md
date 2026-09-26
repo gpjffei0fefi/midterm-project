@@ -24,8 +24,8 @@ npm run lint     # oxlint
 
 The game runs with no configuration. The only external service is the
 **optional** shared leaderboard — if its two environment variables are unset,
-the leaderboard UI simply doesn't appear. **The deployed build ships with the
-leaderboard off** (see its section for why). To enable it, see
+the leaderboard UI simply doesn't appear. **The deployed build has the
+leaderboard on**, wired to a real Supabase project. To set one up, see
 ["Leaderboard (optional)"](#leaderboard-optional) below. `.gitignore`
 excludes `node_modules`, `dist`/`dist-ssr`, and every `.env*` file except the
 committed `.env.example` template.
@@ -303,11 +303,14 @@ the repo; re-export from the source art if you ever need a larger size.
 
 ### Leaderboard (optional)
 
-> **Status: built, but disabled in the deployed build.** No real Supabase
-> project has been created yet, and the code has only been tested against a
-> local mock, so the deployed site is built without the two environment
-> variables and shows no leaderboard UI at all. This is a known limitation, not
-> a bug. To turn it on, follow the setup below and rebuild.
+> **Status: live in the deployed build.** The site is wired to a real Supabase
+> project (`VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` are set as Production
+> environment variables on Vercel, and `supabase/leaderboard.sql` has been run).
+> A real submit and fetch were tested both locally and on the live site.
+> When setting these variables, make sure the values contain no leading BOM or
+> trailing newline: a BOM (which PowerShell's pipe adds) makes the browser reject
+> the request headers, so submits fail with "Couldn't submit your score". Use
+> `printf '%s' value | vercel env add NAME production` from bash.
 
 A shared, cross-device top-20 list of final Trust Scores. It uses
 [Supabase](https://supabase.com) (Postgres) through its plain REST API, called
@@ -354,12 +357,14 @@ unchanged.
   scores are computed client-side, a determined visitor can submit a made-up
   score — fine for a class project, but a real competitive leaderboard would
   need server-side validation (e.g., a Supabase Edge Function).
-- **Verified against a local mock, not a live project:** the client and UI
-  were exercised end-to-end against a stand-in server that speaks the same
-  REST protocol (auth headers, CORS preflight, ordering/limit, DB
-  constraints, 500s, and outage/recovery). It has not yet been run against a
-  real Supabase project, so do a quick real submit after setup to confirm the
-  keys and policies are right.
+- **Verified against a real project:** a real submit (the database computed
+  the total from the three axes) and a fetch (top-20, ordered by total) were
+  run against the live Supabase project from both `localhost` and the deployed
+  site. Earlier work was also exercised against a local mock server (auth
+  headers, CORS preflight, ordering/limit, DB constraints, 500s, outage and
+  recovery). Three test rows named "TEST ... - delete me" were left in the table
+  by those checks; the anon key cannot delete them, so remove them in the
+  Supabase Table Editor.
 
 ### Save / resume, and Play Again (`lib/saveGame.js`, `GameBoard.jsx`, `App.jsx`)
 
@@ -429,8 +434,9 @@ modules greyed with dashed chips, and one still-open module.*
 from their owned modules, the winner highlighted, and the Play Again button.
 The game was fast-forwarded from a resumed late-game save to reach it.*
 
-The leaderboard and submit-score screens have no screenshot because they do
-not exist in the deployed (leaderboard-off) build.
+![Leaderboard](screenshots/leaderboard.png)
+*The live top-20 leaderboard on the deployed site, showing the test rows
+(fetched from the real Supabase project; the newest submit is highlighted).*
 
 ## Deployment
 
@@ -442,8 +448,10 @@ git-ignored. Re-deploy after any change with the same command.
 
 ## Known limitations
 
-- **Leaderboard is off in production** (no real Supabase backend yet; only
-  mock-tested).
+- Three test rows ("TEST ... - delete me") are still in the leaderboard table
+  and must be removed by hand in Supabase (the anon key can't delete).
+- Scores are computed in the browser, so a determined visitor could submit a
+  made-up score (see "Security model" above).
 - The board needs a window at least ~620 px wide (it scrolls horizontally
   below that); the layout is not phone-optimised.
 - One save slot per browser; clearing site data loses it.
