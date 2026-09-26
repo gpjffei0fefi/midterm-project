@@ -25,7 +25,7 @@
 ## Known limitations
 - **Leaderboard is off in production.** No real Supabase project/keys were available, and the code has only been tested against a local mock. To enable: create the project, run `supabase/leaderboard.sql`, set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` in Vercel, redeploy.
 - Not phone-optimised (board needs ~620 px width).
-- Deployed to the Vercel account the CLI on this machine was logged into (`sikhay1`), not confirmed to be the project owner's own account.
+- Hosted on Vercel under the `sikhay1` Vercel team (display name "Sikhay"), at https://build-a-brain-co.vercel.app.
 - Stray 6-byte file `C:\HENRYG~1\placeholder.txt` from an earlier mistake is still there (the environment blocks deleting it); harmless and outside the repo.
 
 ## Next session

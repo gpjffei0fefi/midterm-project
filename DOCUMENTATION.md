@@ -5,7 +5,7 @@ time, while an ethics/accuracy "Trust Score" tracks how responsibly you built
 it. No backend and no database: the game runs entirely in the browser, and an
 in-progress game is kept in that browser's `localStorage` so it can be resumed.
 
-**Live site:** https://build-a-brain-co.vercel.app (static build on Vercel).
+**Live site:** https://build-a-brain-co.vercel.app (static build hosted on Vercel under the `sikhay1` Vercel team (display name "Sikhay")).
 
 This file describes the **current** state of the codebase. It is rewritten
 each time it's regenerated, not appended to — see `reports/` for a
@@ -435,7 +435,8 @@ not exist in the deployed (leaderboard-off) build.
 ## Deployment
 
 The site is a static Vite build (`npm run build` produces `dist/`), deployed to
-Vercel with `vercel deploy --prod`; Vercel auto-detects the framework, so no
+Vercel with `vercel deploy --prod`, under the `sikhay1` Vercel team (display name
+"Sikhay"); Vercel auto-detects the framework, so no
 config file is needed. A `.vercel/` folder holds the local project link and is
 git-ignored. Re-deploy after any change with the same command.
 
