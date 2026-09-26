@@ -27,13 +27,12 @@
 - Leaderboard screenshot retaken from the live site (the submit-form screenshot was dropped).
 
 ## Known limitations
-- **Three test leaderboard rows** ("TEST - delete me", "TEST 2 - delete me", "TEST 3 - delete me") are in the Supabase table from the real-backend checks. The anon key cannot delete rows, so remove them in the Supabase Table Editor.
+- The three test leaderboard rows from the real-backend checks were removed by hand in Supabase (the anon key cannot delete rows). Final check on the live site: the leaderboard is empty ("No scores yet").
 - Not phone-optimised (board needs ~620 px width).
 - Hosted on Vercel under the `sikhay1` Vercel team (display name "Sikhay"), at https://build-a-brain-co.vercel.app.
 - Stray 6-byte file `C:\HENRYG~1\placeholder.txt` from an earlier mistake is still there (the environment blocks deleting it); harmless and outside the repo.
 
 ## Next session
-- Delete the test leaderboard rows.
 - Optionally make the layout phone-friendly.
 
 ## Completion status

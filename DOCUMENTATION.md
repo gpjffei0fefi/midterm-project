@@ -362,9 +362,9 @@ unchanged.
   run against the live Supabase project from both `localhost` and the deployed
   site. Earlier work was also exercised against a local mock server (auth
   headers, CORS preflight, ordering/limit, DB constraints, 500s, outage and
-  recovery). Three test rows named "TEST ... - delete me" were left in the table
-  by those checks; the anon key cannot delete them, so remove them in the
-  Supabase Table Editor.
+  recovery). The three test rows those checks left in the table have since been
+  removed (the anon key can't delete rows, so this was done by hand in the
+  Supabase Table Editor).
 
 ### Save / resume, and Play Again (`lib/saveGame.js`, `GameBoard.jsx`, `App.jsx`)
 
@@ -435,8 +435,8 @@ from their owned modules, the winner highlighted, and the Play Again button.
 The game was fast-forwarded from a resumed late-game save to reach it.*
 
 ![Leaderboard](screenshots/leaderboard.png)
-*The live top-20 leaderboard on the deployed site, showing the test rows
-(fetched from the real Supabase project; the newest submit is highlighted).*
+*The live top-20 leaderboard on the deployed site, fetched from the real
+Supabase project. It is empty until the first real game is submitted.*
 
 ## Deployment
 
@@ -448,8 +448,6 @@ git-ignored. Re-deploy after any change with the same command.
 
 ## Known limitations
 
-- Three test rows ("TEST ... - delete me") are still in the leaderboard table
-  and must be removed by hand in Supabase (the anon key can't delete).
 - Scores are computed in the browser, so a determined visitor could submit a
   made-up score (see "Security model" above).
 - The board needs a window at least ~620 px wide (it scrolls horizontally
