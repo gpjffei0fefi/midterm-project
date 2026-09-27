@@ -170,6 +170,26 @@ written" state any more. Human answers are graded against `correctIndex`.
 The quiz card is 400 px wide; a long prompt scrolls inside the card instead of
 overflowing it.
 
+### Quiz card draw order (`lib/deckDraw.js`)
+
+Each deck (Math, Ethics) deals through a shuffled, no-repeat draw pile: every
+card in that deck is drawn exactly once before the deck reshuffles and starts
+again. One pile per deck is tracked — not per tile and not per turn — so a
+module's acquisition draw, its follow-up draw, and a neutral Ethics/Math tile
+draw all pull from the same sequence for that deck. A module tile still
+prefers a card matching its own `difficultyTier` (the next remaining card of
+that tier is swapped to the front of the draw), but if none of the remaining
+cards match, the next card in the shuffled order is drawn regardless of
+tier — a card is never skipped, since every card has to be dealt before the
+next reshuffle. Fixed a bug where every draw (module and neutral alike) was a
+plain `Math.random()` pick with replacement, so the same card could come up
+repeatedly, including twice in a row. Verified with 2.5 full cycles through
+each real deck (Math: 18 cards, Ethics: 20), mixing tiered and untiered
+draws — zero duplicates within any cycle — and confirmed on the deployed site
+across a real playthrough. The draw piles are persisted in the save file
+(`saveGame.js`), so a resumed game continues the exact same draw order
+instead of reshuffling.
+
 ### Trust Score formula (`data/gameRules.js`, `GameBoard.jsx`)
 
 ```
@@ -180,17 +200,25 @@ Each of the three axes is tracked independently per player and animated
 live in `TrustPanel.jsx` (and again in `ModelReveal.jsx` at game end):
 
 - **Accuracy** — the universal signal. Moves on every module quiz result
-  (any module type) and every Math-deck neutral draw.
+  (any module type), every Math-deck neutral draw, and landing fees on an
+  *irresponsible* (negative-`ethicsWeight`) opponent module.
 - **Fairness** — moves (in addition to accuracy) specifically on Bias
-  Audit module quizzes, on every Ethics-deck neutral draw, and is the axis
-  debited when a player pays a landing fee on an *irresponsible*
-  (negative-`ethicsWeight`) opponent module.
-- **Transparency** — moves (in addition to accuracy) only on
-  Explainability Layer module quizzes.
+  Audit module quizzes, on every Ethics-deck neutral draw, and on landing
+  fees for a *responsible* module whose own trust axis is Fairness (Bias
+  Audit) or that has none of its own (Privacy Filter).
+- **Transparency** — moves (in addition to accuracy) on Explainability
+  Layer module quizzes, and on Explainability Layer's own landing fees.
 - **Landing fees** scale with `|ethicsWeight| × LANDING_FEE_MULTIPLIER` and
-  transfer trust from visitor to owner on the axis matching the module
-  (irresponsible → Fairness debit / Accuracy credit; responsible → Accuracy
-  debit / the module's own bonus axis as credit).
+  transfer trust from visitor to owner on one shared axis: an irresponsible
+  module moves a straight Accuracy transfer (visitor debit, owner credit);
+  a responsible module moves its own trust axis instead, or Fairness if it
+  has none. Fixed a bug where this was backwards — an irresponsible module
+  was debiting the visitor's Fairness and crediting the owner's Accuracy,
+  and a responsible module was debiting Accuracy and crediting the owner's
+  trust axis. Verified directly (forcing a single-step move onto an
+  opponent's Bias Audit and, separately, Data Pipeline) on both localhost
+  and the deployed site: the Bias Audit fee now moves Fairness only, and the
+  Data Pipeline fee now moves Accuracy only, on both sides.
 
 All the point values (bonuses, penalties, the fee multiplier) live in
 `gameRules.js` as named constants — tune balance there, not in
@@ -420,7 +448,18 @@ All screenshots were taken from the deployed site
 dice/turn control, lap counter and the Trust Score panel.*
 
 ![Card draw in progress](screenshots/card-draw.png)
-*A real quiz card flipped face-up during a landing (Math deck: four options).*
+*A real quiz card (`ethics-01`, two options) flipped face-up during a landing,
+part of a sequence of unique draws with no repeats on the deployed site.*
+
+![Landing fee on a responsible module](screenshots/landing-fee-responsible.png)
+*Landing on an opponent's Bias Audit: the fee moved Fairness on both sides
+(visitor −6, owner +6), verified by reading the exact axis values before and
+after on the deployed site.*
+
+![Landing fee on an irresponsible module](screenshots/landing-fee-irresponsible.png)
+*Landing on an opponent's Data Pipeline: the fee moved Accuracy on both sides
+(visitor −6, owner +6) instead — the corrected, opposite axis from the
+responsible-module case above.*
 
 ![Trust Score breakdown](screenshots/trust-breakdown.png)
 *The live per-player Accuracy / Fairness / Transparency bars.*
