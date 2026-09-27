@@ -20,14 +20,27 @@ function totalTrust(player) {
   return player.accuracy + player.fairness + player.transparency
 }
 
+// "A", "A and B", or "A, B, and C" — for the tie announcement.
+function joinNames(list) {
+  const names = list.map((p) => p.name)
+  if (names.length < 2) return names[0] ?? ''
+  if (names.length === 2) return `${names[0]} and ${names[1]}`
+  return `${names.slice(0, -1).join(', ')}, and ${names[names.length - 1]}`
+}
+
 function ModelReveal({ players, ownedByPlayer, endReason, lapsToWin, onPlayAgain }) {
-  // Reveal order: lowest Trust Score first, winner revealed last.
+  // Reveal order: lowest Trust Score first, winner(s) revealed last. A stable
+  // sort alone would break a tie arbitrarily (whichever tied player happens
+  // to sort last), so the winner set is its own explicit computation: every
+  // player at the single highest score, not just the last one revealed.
   const ranking = useMemo(
     () => [...players].sort((a, b) => totalTrust(a) - totalTrust(b)).map((p) => p.id),
     [players]
   )
-  const winnerId = ranking[ranking.length - 1]
-  const winner = players.find((p) => p.id === winnerId)
+  const maxTrust = Math.max(...players.map(totalTrust))
+  const winners = useMemo(() => players.filter((p) => totalTrust(p) === maxTrust), [players, maxTrust])
+  const winnerIds = useMemo(() => new Set(winners.map((p) => p.id)), [winners])
+  const isTie = winners.length > 1
 
   const [playerIndex, setPlayerIndex] = useState(0)
   const [moduleCount, setModuleCount] = useState(0)
@@ -110,7 +123,10 @@ function ModelReveal({ players, ownedByPlayer, endReason, lapsToWin, onPlayAgain
           </span>
           <h1 className="model-reveal__title">Model Reveal</h1>
           <p className={`model-reveal__announcement${showWinner ? ' model-reveal__announcement--shown' : ''}`} aria-live="polite">
-            {showWinner && `${winner.name} wins with a Trust Score of ${totalTrust(winner)}.`}
+            {showWinner &&
+              (isTie
+                ? `${joinNames(winners)} tie with a Trust Score of ${maxTrust}.`
+                : `${winners[0].name} wins with a Trust Score of ${maxTrust}.`)}
           </p>
         </div>
 
@@ -121,7 +137,7 @@ function ModelReveal({ players, ownedByPlayer, endReason, lapsToWin, onPlayAgain
             const revealedCount =
               status === 'done' ? modules.length : status === 'active' ? moduleCount : 0
             const statsVisible = status === 'done' || revealedStats[player.id]
-            const isWinner = showWinner && player.id === winnerId
+            const isWinner = showWinner && winnerIds.has(player.id)
 
             return (
               <div
@@ -129,7 +145,7 @@ function ModelReveal({ players, ownedByPlayer, endReason, lapsToWin, onPlayAgain
                 className={`reveal-card reveal-card--${status}${isWinner ? ' reveal-card--winner' : ''}`}
                 style={{ '--token-color': player.color }}
               >
-                {isWinner && <span className="reveal-card__badge">Winner</span>}
+                {isWinner && <span className="reveal-card__badge">{isTie ? 'Tied' : 'Winner'}</span>}
 
                 <div className="reveal-card__header">
                   <span className="reveal-card__swatch" />

@@ -28,14 +28,26 @@ function TrustPanel({ players, activePlayerId, trustDeltas }) {
                 </span>
                 <div className="trust-row__value-wrap">
                   <span className="trust-row__value">{total}</span>
-                  {delta && (
-                    <span
-                      key={delta.key}
-                      className={`trust-row__delta trust-row__delta--${delta.amount >= 0 ? 'positive' : 'negative'}`}
-                    >
-                      {delta.amount >= 0 ? `+${delta.amount}` : delta.amount}
-                    </span>
-                  )}
+                  {delta &&
+                    (() => {
+                      // A debit that landed on an axis already at 0 has
+                      // nothing to show as a number (it moved by exactly 0),
+                      // but it still gets its own marker rather than no
+                      // indicator at all — otherwise a floored debit and "no
+                      // change happened" look identical.
+                      const atFloor = delta.amount === 0 && delta.flooredOut
+                      return (
+                        <span
+                          key={delta.key}
+                          className={`trust-row__delta trust-row__delta--${
+                            atFloor ? 'floored' : delta.amount >= 0 ? 'positive' : 'negative'
+                          }`}
+                          title={atFloor ? 'Already at the minimum — this axis can’t drop further' : undefined}
+                        >
+                          {atFloor ? '±0' : delta.amount >= 0 ? `+${delta.amount}` : delta.amount}
+                        </span>
+                      )
+                    })()}
                 </div>
               </div>
               <div className="trust-player__axes">

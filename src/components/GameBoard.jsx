@@ -133,25 +133,42 @@ function GameBoard({ playerName, initialSave, onPlayAgain }) {
   // deltas: partial { accuracy?, fairness?, transparency? } — applies each
   // axis independently (clamped at 0) and pops a single floating indicator
   // showing the net change to the player's total Trust Score.
-  function applyAxisChange(playerId, deltas) {
+  //
+  // context: a short label for *why* this change is happening (e.g.
+  // "landing-fee:BA-1:visitor"), used only for the console warning below —
+  // it isn't shown in the UI. A debit that hits the 0 floor still moves
+  // nothing (there's nothing to go more negative), but it's easy to mistake
+  // for a one-sided bug if you're only watching one player's number, so it's
+  // logged and still gets its own (zero-amount) floating indicator instead
+  // of vanishing silently.
+  function applyAxisChange(playerId, deltas, context) {
     let netDelta = 0
+    let flooredOut = false
     setPlayers((prev) =>
       prev.map((p) => {
         if (p.id !== playerId) return p
         const next = { ...p }
         for (const axis of ['accuracy', 'fairness', 'transparency']) {
           if (deltas[axis]) {
-            const clamped = Math.max(0, p[axis] + deltas[axis])
-            netDelta += clamped - p[axis]
+            const before = p[axis]
+            const clamped = Math.max(0, before + deltas[axis])
+            const change = clamped - before
+            netDelta += change
             next[axis] = clamped
+            if (deltas[axis] < 0 && change === 0) {
+              flooredOut = true
+              console.warn(
+                `[trust] ${context ?? playerId}: ${axis} debit of ${deltas[axis]} had no effect — ${playerId}'s ${axis} was already at the 0 floor`
+              )
+            }
           }
         }
         return next
       })
     )
-    if (netDelta === 0) return
+    if (netDelta === 0 && !flooredOut) return
     const key = `${playerId}-${Date.now()}-${Math.random()}`
-    setTrustDeltas((prev) => ({ ...prev, [playerId]: { amount: netDelta, key } }))
+    setTrustDeltas((prev) => ({ ...prev, [playerId]: { amount: netDelta, flooredOut, key } }))
     setTimeout(() => {
       setTrustDeltas((prev) => {
         if (prev[playerId]?.key !== key) return prev
@@ -235,11 +252,11 @@ function GameBoard({ playerName, initialSave, onPlayAgain }) {
       await flyModuleToPanel(tile, playerId)
       const deltas = { accuracy: MODULE_ACCURACY_BONUS }
       if (tile.trustAxis) deltas[tile.trustAxis] = MODULE_AXIS_BONUS
-      applyAxisChange(playerId, deltas)
+      applyAxisChange(playerId, deltas, `acquire:${tile.code}`)
     } else {
       const deltas = { accuracy: -ACQUIRE_WRONG_PENALTY }
       if (tile.trustAxis) deltas[tile.trustAxis] = -ACQUIRE_WRONG_PENALTY
-      applyAxisChange(playerId, deltas)
+      applyAxisChange(playerId, deltas, `acquire-wrong:${tile.code}`)
     }
   }
 
@@ -254,7 +271,7 @@ function GameBoard({ playerName, initialSave, onPlayAgain }) {
       setModuleState((prev) => ({ ...prev, [tile.id]: { ...prev[tile.id], state: 'glitchy' } }))
       const deltas = { accuracy: -FOLLOWUP_WRONG_PENALTY }
       if (tile.trustAxis) deltas[tile.trustAxis] = -FOLLOWUP_WRONG_PENALTY
-      applyAxisChange(playerId, deltas)
+      applyAxisChange(playerId, deltas, `followup-wrong:${tile.code}`)
     }
   }
 
@@ -266,7 +283,7 @@ function GameBoard({ playerName, initialSave, onPlayAgain }) {
       (correct) => (correct ? `Trust +${NEUTRAL_BONUS}` : `Trust -${NEUTRAL_PENALTY}`),
       isAIPlayer(playerId)
     )
-    applyAxisChange(playerId, { [axis]: isCorrect ? NEUTRAL_BONUS : -NEUTRAL_PENALTY })
+    applyAxisChange(playerId, { [axis]: isCorrect ? NEUTRAL_BONUS : -NEUTRAL_PENALTY }, `neutral:${tile.code}`)
   }
 
   async function applyLandingFee(tile, visitorId, ownerId) {
@@ -278,8 +295,13 @@ function GameBoard({ playerName, initialSave, onPlayAgain }) {
     // Privacy Filter) — same axis for both the visitor's debit and the
     // owner's credit.
     const axis = irresponsible ? 'accuracy' : tile.trustAxis || 'fairness'
-    applyAxisChange(visitorId, { [axis]: -fee })
-    applyAxisChange(ownerId, { [axis]: fee })
+    // Logged unconditionally (not just when something's floored) so a full
+    // trail of every landing fee is in the console if the two sides ever
+    // look wrong again — cheap, and it's the exact interaction that's been
+    // hard to verify from a screenshot alone.
+    console.info(`[trust] landing fee: ${visitorId} pays ${ownerId} ${fee} ${axis} for ${tile.code}`)
+    applyAxisChange(visitorId, { [axis]: -fee }, `landing-fee:${tile.code}:visitor`)
+    applyAxisChange(ownerId, { [axis]: fee }, `landing-fee:${tile.code}:owner`)
     await sleep(TRUST_DELTA_DISPLAY_MS)
   }
 

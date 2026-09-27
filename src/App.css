@@ -552,6 +552,7 @@ input:focus-visible {
 
 .trust-row__delta--positive { color: var(--green); }
 .trust-row__delta--negative { color: var(--pink); }
+.trust-row__delta--floored { color: var(--ghost); }
 
 @keyframes trust-delta-float {
   0% { opacity: 0; transform: translateY(4px); }

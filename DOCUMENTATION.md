@@ -220,6 +220,20 @@ live in `TrustPanel.jsx` (and again in `ModelReveal.jsx` at game end):
   and the deployed site: the Bias Audit fee now moves Fairness only, and the
   Data Pipeline fee now moves Accuracy only, on both sides.
 
+Every axis is clamped at a floor of 0 (`applyAxisChange`). A debit that lands
+on an axis already at 0 has nothing to visibly move — the same code path that
+correctly debits a healthy value simply produces a 0-sized change against an
+already-empty one, which can look like a one-sided transfer if you're only
+watching one player's number. Two things make this diagnosable instead of
+silent: every `applyAxisChange` call carries a short `context` label (e.g.
+`landing-fee:BA-1:visitor`) and logs a console warning whenever a debit is
+floored out this way, and `TrustPanel.jsx`'s floating indicator shows a
+distinct grey **±0** (with a tooltip) for a floored debit instead of no
+indicator at all. `applyLandingFee` also always logs an info line
+(`[trust] landing fee: p2 pays p1 6 fairness for BA-1`) for every fee, floored
+or not, so the whole exchange is in the console if the two sides ever look
+wrong again.
+
 All the point values (bonuses, penalties, the fee multiplier) live in
 `gameRules.js` as named constants — tune balance there, not in
 `GameBoard.jsx`.
@@ -268,9 +282,16 @@ Compute Cluster on the chest, Bias Audit and Privacy Filter on the arms, Data
 Pipeline and Model Deployment in the bottom corners); pieces land base-first.
 Two copies of the same module type share one mount point, nudged apart. The
 sequence waits until every image it needs is decoded so each snap is a
-finished picture. Once everyone's revealed, the top-scoring player gets a
-highlighted "Winner" badge and a serif announcement line. **Module count has no
-bearing on the win condition** — only the final Trust Score does. When the
+finished picture. Once everyone's revealed, **every player at the single
+highest Trust Score** gets a highlighted badge and a serif announcement
+line — one player reads "Winner"; two or more reads "Tied" on each of their
+cards, with an announcement like "Tester and Player 3 tie with a Trust Score
+of 48." The winner set is computed directly (every player whose total equals
+the game's maximum), not by taking "whoever sorts last": a plain ascending
+sort alone would resolve a tie arbitrarily, since a stable sort keeps tied
+players in their original order and the old code just took the last one.
+**Module count has no bearing on the win condition** — only the final Trust
+Score does. When the
 leaderboard is enabled, the human player's submit form and a "View
 leaderboard" button appear beneath the cards once the winner is shown. A
 **Play Again** button always appears there too: it clears the save and
