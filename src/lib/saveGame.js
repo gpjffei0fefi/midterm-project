@@ -28,6 +28,10 @@ function isValidSave(data) {
     if (!m || (m.owner !== null && !data.players.some((p) => p.id === m.owner))) return false
     if (m.state !== 'clean' && m.state !== 'glitchy') return false
   }
+  // data.drawPiles (the Math/Ethics no-repeat draw order) is optional and
+  // intentionally not validated here: it's absent on saves from before this
+  // field existed, and GameBoard's hydrateDrawPile is already defensive
+  // against a missing or corrupt pile, falling back to a fresh shuffle.
   return true
 }
 
@@ -44,11 +48,11 @@ export function loadSavedGame() {
   return null
 }
 
-export function saveGame({ players, currentPlayerIndex, turns, diceValue, moduleState }) {
+export function saveGame({ players, currentPlayerIndex, turns, diceValue, moduleState, drawPiles }) {
   try {
     localStorage.setItem(
       KEY,
-      JSON.stringify({ version: VERSION, players, currentPlayerIndex, turns, diceValue, moduleState })
+      JSON.stringify({ version: VERSION, players, currentPlayerIndex, turns, diceValue, moduleState, drawPiles })
     )
   } catch {
     // storage full or blocked — the game still plays, it just can't be resumed

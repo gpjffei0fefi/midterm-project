@@ -26,6 +26,7 @@ import {
 } from '../constants/timing'
 import { sleep } from '../utils/sleep'
 import { saveGame, clearSavedGame } from '../lib/saveGame'
+import { createDrawPile, hydrateDrawPile, drawCard } from '../lib/deckDraw'
 import Tile from './Tile'
 import TrustPanel from './TrustPanel'
 import ControlPanel from './ControlPanel'
@@ -42,13 +43,6 @@ function initialModuleState() {
   return Object.fromEntries(
     TILES.filter((t) => t.type === 'module').map((t) => [t.id, { owner: null, state: 'clean' }])
   )
-}
-
-function drawCardForTile(tile) {
-  const deck = DECKS[tile.deckKey]
-  const pool = deck.filter((c) => c.difficultyTier === tile.difficultyTier)
-  const source = pool.length > 0 ? pool : deck
-  return source[Math.floor(Math.random() * source.length)]
 }
 
 // AI opponents don't reason about the question — just a weighted coin flip
@@ -94,6 +88,21 @@ function GameBoard({ playerName, initialSave, onPlayAgain }) {
   const panelRefs = useRef(new Map())
   const panelRefCallbacks = useRef({})
   const quizResolverRef = useRef(null)
+  // One shuffled draw pile per deck (not per tile, not per turn), so every
+  // card in Math and every card in Ethics is dealt once before either
+  // reshuffles. Lives in a ref: draw order doesn't need to trigger a render.
+  const drawPilesRef = useRef({
+    math: initialSave?.drawPiles?.math
+      ? hydrateDrawPile(initialSave.drawPiles.math, DECKS.math)
+      : createDrawPile(DECKS.math),
+    ethics: initialSave?.drawPiles?.ethics
+      ? hydrateDrawPile(initialSave.drawPiles.ethics, DECKS.ethics)
+      : createDrawPile(DECKS.ethics),
+  })
+
+  function drawCardForTile(tile) {
+    return drawCard(drawPilesRef.current[tile.deckKey], DECKS[tile.deckKey], tile.difficultyTier)
+  }
 
   const activePlayer = players[currentPlayerIndex]
 
@@ -250,8 +259,7 @@ function GameBoard({ playerName, initialSave, onPlayAgain }) {
   }
 
   async function handleNeutralDraw(tile, playerId) {
-    const deck = DECKS[tile.deckKey]
-    const card = deck[Math.floor(Math.random() * deck.length)]
+    const card = drawCard(drawPilesRef.current[tile.deckKey], DECKS[tile.deckKey])
     const axis = tile.deckKey === 'ethics' ? 'fairness' : 'accuracy'
     const isCorrect = await presentQuiz(
       card,
@@ -264,10 +272,14 @@ function GameBoard({ playerName, initialSave, onPlayAgain }) {
   async function applyLandingFee(tile, visitorId, ownerId) {
     const fee = Math.abs(tile.ethicsWeight) * LANDING_FEE_MULTIPLIER
     const irresponsible = tile.ethicsWeight < 0
-    const visitorAxis = irresponsible ? 'fairness' : 'accuracy'
-    const ownerAxis = irresponsible ? 'accuracy' : tile.trustAxis || 'accuracy'
-    applyAxisChange(visitorId, { [visitorAxis]: -fee })
-    applyAxisChange(ownerId, { [ownerAxis]: fee })
+    // Irresponsible (technical) modules move a straight Accuracy transfer;
+    // responsible (ethics) modules move the module's own trust axis instead
+    // (or Fairness, for a responsible module with no axis of its own, like
+    // Privacy Filter) — same axis for both the visitor's debit and the
+    // owner's credit.
+    const axis = irresponsible ? 'accuracy' : tile.trustAxis || 'fairness'
+    applyAxisChange(visitorId, { [axis]: -fee })
+    applyAxisChange(ownerId, { [axis]: fee })
     await sleep(TRUST_DELTA_DISPLAY_MS)
   }
 
@@ -351,7 +363,7 @@ function GameBoard({ playerName, initialSave, onPlayAgain }) {
       setGameOver(true)
       clearSavedGame()
     } else if (turns > 0) {
-      saveGame({ players, currentPlayerIndex, turns, diceValue, moduleState })
+      saveGame({ players, currentPlayerIndex, turns, diceValue, moduleState, drawPiles: drawPilesRef.current })
     }
     // Deliberately keyed on isMoving only: it flips false exactly when a turn ends.
     // eslint-disable-next-line react-hooks/exhaustive-deps

@@ -1,10 +1,13 @@
 // Trust Score = accuracy + fairness + transparency, each a live-tracked axis.
 //
-// Accuracy: earned/lost on every module quiz (any type) and every Math-deck
-// neutral draw — the universal "did the technical answer hold up" signal.
+// Accuracy: earned/lost on every module quiz (any type), every Math-deck
+// neutral draw, and irresponsible-module (negative-ethicsWeight) landing
+// fees — the universal "did the technical answer hold up" signal.
 // Fairness: earned/lost on Bias Audit module quizzes, Ethics-deck neutral
-// draws, and irresponsible-module landing fees paid.
-// Transparency: earned/lost on Explainability Layer module quizzes only.
+// draws, and landing fees on responsible modules whose own trust axis is
+// Fairness (Bias Audit) or that have none of their own (Privacy Filter).
+// Transparency: earned/lost on Explainability Layer module quizzes, and on
+// Explainability Layer's own landing fees.
 export const MODULE_ACCURACY_BONUS = 10
 export const MODULE_AXIS_BONUS = 10
 export const ACQUIRE_WRONG_PENALTY = 6
