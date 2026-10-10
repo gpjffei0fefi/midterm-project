@@ -1,6 +1,7 @@
 // One in-progress game per browser, kept in localStorage. Saved after every
 // resolved turn; cleared when the game ends or a new one is started.
 import { TILES } from '../data/boardData'
+import { MIN_PLAYERS, MAX_PLAYERS } from '../data/gameRules'
 
 const KEY = 'build-a-brain:save'
 const VERSION = 1
@@ -12,10 +13,11 @@ const isNum = (n) => typeof n === 'number' && Number.isFinite(n)
 // the game falls back to a fresh start instead of crashing on load.
 function isValidSave(data) {
   if (!data || data.version !== VERSION) return false
-  if (!Array.isArray(data.players) || data.players.length !== 3) return false
+  if (!Array.isArray(data.players) || data.players.length < MIN_PLAYERS || data.players.length > MAX_PLAYERS) return false
   for (const p of data.players) {
     if (typeof p.id !== 'string' || typeof p.name !== 'string' || typeof p.color !== 'string') return false
     if (typeof p.isAI !== 'boolean') return false
+    if (p.isAI && p.aiTier != null && ![1, 2, 3].includes(p.aiTier)) return false
     if (![p.position, p.accuracy, p.fairness, p.transparency, p.laps].every(isNum)) return false
     if (p.position < 0 || p.position >= TILES.length) return false
   }

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { leaderboardEnabled } from '../lib/leaderboard'
 import { chassisArt, moduleArt, preloadImages } from '../data/moduleArt'
+import { totalTrust, computeWinners, joinNames } from '../lib/scoring'
 import PlayerCreature from './PlayerCreature'
 import SubmitScore from './SubmitScore'
 import LeaderboardScreen from './LeaderboardScreen'
@@ -16,18 +17,6 @@ const AXES = [
   { key: 'transparency', label: 'TRANS' },
 ]
 
-function totalTrust(player) {
-  return player.accuracy + player.fairness + player.transparency
-}
-
-// "A", "A and B", or "A, B, and C" — for the tie announcement.
-function joinNames(list) {
-  const names = list.map((p) => p.name)
-  if (names.length < 2) return names[0] ?? ''
-  if (names.length === 2) return `${names[0]} and ${names[1]}`
-  return `${names.slice(0, -1).join(', ')}, and ${names[names.length - 1]}`
-}
-
 function ModelReveal({ players, ownedByPlayer, endReason, lapsToWin, onPlayAgain }) {
   // Reveal order: lowest Trust Score first, winner(s) revealed last. A stable
   // sort alone would break a tie arbitrarily (whichever tied player happens
@@ -37,8 +26,8 @@ function ModelReveal({ players, ownedByPlayer, endReason, lapsToWin, onPlayAgain
     () => [...players].sort((a, b) => totalTrust(a) - totalTrust(b)).map((p) => p.id),
     [players]
   )
-  const maxTrust = Math.max(...players.map(totalTrust))
-  const winners = useMemo(() => players.filter((p) => totalTrust(p) === maxTrust), [players, maxTrust])
+  const winners = useMemo(() => computeWinners(players), [players])
+  const maxTrust = winners.length > 0 ? totalTrust(winners[0]) : 0
   const winnerIds = useMemo(() => new Set(winners.map((p) => p.id)), [winners])
   const isTie = winners.length > 1
 

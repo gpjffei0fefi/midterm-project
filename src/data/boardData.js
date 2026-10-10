@@ -28,11 +28,32 @@ export const TILES = [
 ]
 
 // Trust Score = accuracy + fairness + transparency (each tracked live).
-// Player 1 is human-controlled; Players 2-3 are AI opponents (see
-// GameBoard's auto-roll effect and the AI answer-probability logic).
-export const INITIAL_PLAYERS = [
-  // Colors match the restyle's --card-blue / --set-magenta / --set-yellow tokens (src/index.css).
-  { id: 'p1', name: 'Player 1', color: '#01aeee', position: 0, accuracy: 26, fairness: 23, transparency: 23, isAI: false, laps: 0 },
-  { id: 'p2', name: 'Player 2', color: '#d93a96', position: 0, accuracy: 20, fairness: 19, transparency: 19, isAI: true, laps: 0 },
-  { id: 'p3', name: 'Player 3', color: '#fef200', position: 0, accuracy: 29, fairness: 28, transparency: 28, isAI: true, laps: 0 },
-]
+// Every seat starts at the same neutral trust so the starting line is fair
+// regardless of how many seats are in play.
+const STARTING_TRUST = { accuracy: 25, fairness: 25, transparency: 25 }
+
+// Up to MAX_PLAYERS (gameRules.js) distinct, ink-outlined token colors —
+// matches the restyle's --card-blue / --set-magenta / --set-yellow /
+// --set-green tokens (src/index.css). Index 0 is always the first human
+// seat in every mode, for continuity with earlier single-player saves.
+export const PLAYER_COLORS = ['#01aeee', '#d93a96', '#fef200', '#1fb25a']
+
+// Builds a fresh players array from a list of seats, in seat order. Every
+// mode's setup screen assembles its own `seats` and hands them here — this
+// is the one place a player object's shape is defined, so no game-loop code
+// ever needs to know how many seats, or which mode, produced it.
+//   seat: { name, isAI, color, aiTier? } — aiTier is required for AI seats
+//   (see gameRules.js's AI_CORRECT_PROBABILITY_BY_TIER) and ignored for
+//   human seats.
+export function buildPlayers(seats) {
+  return seats.map((seat, i) => ({
+    id: `p${i + 1}`,
+    name: seat.name,
+    color: seat.color,
+    position: 0,
+    ...STARTING_TRUST,
+    isAI: Boolean(seat.isAI),
+    aiTier: seat.isAI ? seat.aiTier : null,
+    laps: 0,
+  }))
+}

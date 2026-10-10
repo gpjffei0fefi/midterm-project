@@ -17,13 +17,28 @@ export const NEUTRAL_PENALTY = 5
 export const LANDING_FEE_MULTIPLIER = 2
 
 // AI opponents "answer" every card with a fixed probability of being
-// correct, keyed by the card's difficulty tier — no real reasoning, just a
-// weighted coin flip.
+// correct — no real reasoning, just a weighted coin flip. The probability
+// comes from the ACTING PLAYER's own assigned `aiTier` (set once at seat
+// setup — see data/boardData.js's buildPlayers), not from the card's own
+// difficultyTier: AI Mode gives each AI opponent a different, fixed skill
+// level (tier 1 = toughest/most accurate) rather than having every AI get
+// harder or easier on the exact same cards a human would.
 export const AI_CORRECT_PROBABILITY_BY_TIER = {
   1: 0.7,
   2: 0.5,
   3: 0.3,
 }
+
+// Seat limits, shared by every mode's player-count screen and by every
+// place that validates a roster size (saveGame, the N-player tests). Not
+// hardcoded as a bare 2/3/4 anywhere else in the game loop.
+export const MIN_PLAYERS = 2
+export const MAX_PLAYERS = 4
+
+// Hard Mode is one human vs one AI, previewed with the existing tier-based
+// AI at its toughest (tier 1) setting until a real web-searching agent is
+// wired in — see data/boardData.js's buildHardModeSeats.
+export const HARD_MODE_PREVIEW_TIER = 1
 
 // The game ends at the close of the first full round (everyone has had the same
 // number of turns) in which any player has completed this many laps, or as soon

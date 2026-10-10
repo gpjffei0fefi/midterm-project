@@ -1712,6 +1712,18 @@ input:focus-visible {
   box-shadow: 1px 1px 0 var(--ink);
 }
 
+/* A disabled primary button (the Online setup's placeholder Create/Join
+   controls) reads as visibly inert rather than identical to a working CTA —
+   critique finding: a live-looking magenta button that silently does
+   nothing on click is the worst kind of dead end. */
+.intro__button:disabled {
+  background: var(--paper-deep);
+  border-color: var(--ink-muted);
+  color: var(--ink-muted);
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
 .intro__button--ghost {
   color: var(--ink);
   background: var(--paper);
@@ -1719,6 +1731,12 @@ input:focus-visible {
 
 .intro__button--ghost:hover {
   background: var(--paper-deep);
+}
+
+/* Same ink-on-ink focus concern as .mode-card: a ghost button already has
+   an ink border, so its focus ring uses the primary accent instead. */
+.intro__button--ghost:focus-visible {
+  outline-color: var(--accent-primary);
 }
 
 .intro__field {
@@ -1743,6 +1761,12 @@ input:focus-visible {
   border: 2px solid var(--ink);
   border-radius: 8px;
   padding: 10px 12px;
+}
+
+.intro__input:disabled {
+  color: var(--ink-muted);
+  border-color: var(--ink-muted);
+  cursor: not-allowed;
 }
 
 .mechanics {
@@ -1851,6 +1875,215 @@ input:focus-visible {
 
 @media (max-width: 640px) {
   .mechanics {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* -------------------------------------------------- start menu & mode setup -------------------------------------------------- */
+
+.intro__panel--menu { max-width: 720px; }
+.intro__panel--count,
+.intro__panel--online { max-width: 440px; }
+.intro__panel--local { max-width: 640px; }
+
+.intro__actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.mode-grid {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  text-align: left;
+}
+
+.mode-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 14px 16px;
+  font-family: var(--sans);
+  background: var(--paper-deep);
+  border: 2px solid var(--ink);
+  border-top: 5px solid var(--accent);
+  cursor: pointer;
+  text-align: left;
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+
+.mode-card:hover {
+  transform: translate(-1px, -1px);
+  box-shadow: var(--shadow-hard-sm);
+}
+
+/* Critique finding: an ink outline on a card that already has a 2px ink
+   border reads as barely-there. Each card focuses in its own accent color
+   instead, so the ring is never ink-on-ink. */
+.mode-card:focus-visible {
+  outline-color: var(--accent);
+  outline-offset: 3px;
+}
+
+/* Named for what they actually render (not left as "green"/"pink", which
+   drifted from these colors during the restyle) and chosen so no mode card
+   claims --accent-primary, the one hue the rest of the app reserves for the
+   real call-to-action (Play / Continue / Start game) — Hard Mode wearing
+   that color read as a false "this is the recommended pick" signal. */
+.mode-card--blue { --accent: var(--accent-math); }
+.mode-card--orange { --accent: var(--card-orange); }
+.mode-card--red { --accent: var(--accent-penalty); }
+.mode-card--yellow { --accent: var(--accent-highlight); }
+
+.mode-card__badge {
+  display: inline-block;
+  align-self: flex-start;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--ink);
+  background: var(--accent-highlight);
+  border: 1.5px solid var(--ink);
+  border-radius: 999px;
+  padding: 1px 8px;
+  margin-bottom: 2px;
+}
+
+/* A quieter, grey "glitchy"-style badge for a mode that actually plays
+   today, just in a reduced/preview form — distinct from the yellow badge
+   above, which is reserved for a mode that does nothing yet at all. */
+.mode-card__badge--preview {
+  color: var(--ink);
+  background: var(--ghost);
+}
+
+.mode-card__title {
+  font-family: var(--serif);
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.mode-card__description {
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--ink-muted);
+}
+
+.count-picker {
+  display: flex;
+  gap: 10px;
+}
+
+.count-picker__option {
+  width: 48px;
+  height: 48px;
+  font-family: var(--sans);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--ink);
+  background: var(--paper-deep);
+  border: 2px solid var(--ink);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+
+.count-picker__option:hover {
+  transform: translate(-1px, -1px);
+  box-shadow: var(--shadow-hard-sm);
+}
+
+.count-picker__option--selected {
+  background: var(--accent-primary-cta);
+  box-shadow: var(--shadow-hard-sm);
+}
+
+.local-seats {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  text-align: left;
+}
+
+.local-seat {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+  padding: 12px;
+  background: var(--paper-deep);
+  border: 2px solid var(--ink);
+  border-radius: 10px;
+}
+
+.local-seat .intro__field {
+  flex: 1;
+  min-width: 140px;
+}
+
+.token-picker {
+  display: flex;
+  gap: 8px;
+}
+
+.token-picker__swatch {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--token-color);
+  border: 2px solid var(--ink);
+  cursor: pointer;
+}
+
+.token-picker__swatch--selected {
+  box-shadow: 0 0 0 2px var(--paper-deep), 0 0 0 4px var(--ink);
+}
+
+.token-picker__swatch:disabled {
+  opacity: 0.25;
+  cursor: not-allowed;
+}
+
+.online-actions {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.online-join {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.online-join .intro__field {
+  flex: 1;
+  min-width: 140px;
+}
+
+.online-coming-next {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--ink-muted);
+  padding: 12px;
+  background: var(--paper-deep);
+  border: 2px dashed var(--ink);
+  border-radius: 10px;
+}
+
+@media (max-width: 480px) {
+  .mode-grid {
     grid-template-columns: 1fr;
   }
 }

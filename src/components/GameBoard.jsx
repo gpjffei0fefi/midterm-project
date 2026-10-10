@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { TILES, INITIAL_PLAYERS } from '../data/boardData'
+import { TILES } from '../data/boardData'
 import { DECKS } from '../data/quizCards'
 import {
   MODULE_ACCURACY_BONUS,
@@ -8,7 +8,6 @@ import {
   FOLLOWUP_WRONG_PENALTY,
   NEUTRAL_BONUS,
   NEUTRAL_PENALTY,
-  LANDING_FEE_MULTIPLIER,
   AI_CORRECT_PROBABILITY_BY_TIER,
   LAPS_TO_WIN,
 } from '../data/gameRules'
@@ -27,6 +26,8 @@ import {
 import { sleep } from '../utils/sleep'
 import { saveGame, clearSavedGame } from '../lib/saveGame'
 import { createDrawPile, hydrateDrawPile, drawCard } from '../lib/deckDraw'
+import { nextPlayerIndex } from '../lib/turnOrder'
+import { computeLandingFee } from '../lib/landingFee'
 import Tile from './Tile'
 import TrustPanel from './TrustPanel'
 import ControlPanel from './ControlPanel'
@@ -47,9 +48,10 @@ function initialModuleState() {
 }
 
 // AI opponents don't reason about the question — just a weighted coin flip
-// keyed by the card's difficulty tier.
-function rollAICorrectness(tier) {
-  const probability = AI_CORRECT_PROBABILITY_BY_TIER[tier] ?? 0.5
+// keyed by the ACTING PLAYER's own assigned skill tier (set once at seat
+// setup, see data/seatBuilders.js), not by the card's own difficulty tier.
+function rollAICorrectness(player) {
+  const probability = AI_CORRECT_PROBABILITY_BY_TIER[player.aiTier] ?? 0.5
   return Math.random() < probability
 }
 
@@ -61,15 +63,12 @@ function pickOptionForOutcome(card, isCorrect) {
   return wrong[Math.floor(Math.random() * wrong.length)]
 }
 
-function freshPlayers(playerName) {
-  return INITIAL_PLAYERS.map((p) => (p.id === 'p1' && playerName ? { ...p, name: playerName } : p))
-}
-
-// playerName: what Player 1 is called (from the name-entry screen).
+// players: the freshly built roster for a new game (see data/boardData.js's
+// buildPlayers), ignored when resuming a save.
 // initialSave: a saved game to restore, or null for a new one.
 // onPlayAgain: called from the Model Reveal to start a fresh game.
-function GameBoard({ playerName, initialSave, onPlayAgain }) {
-  const [players, setPlayers] = useState(() => initialSave?.players ?? freshPlayers(playerName))
+function GameBoard({ players: initialPlayers, initialSave, onPlayAgain }) {
+  const [players, setPlayers] = useState(() => initialSave?.players ?? initialPlayers)
   const [currentPlayerIndex, setCurrentPlayerIndex] = useState(initialSave?.currentPlayerIndex ?? 0)
   const [turns, setTurns] = useState(initialSave?.turns ?? 0)
   const [endReason, setEndReason] = useState(null)
@@ -107,8 +106,8 @@ function GameBoard({ playerName, initialSave, onPlayAgain }) {
 
   const activePlayer = players[currentPlayerIndex]
 
-  function isAIPlayer(playerId) {
-    return players.find((p) => p.id === playerId)?.isAI ?? false
+  function playerById(playerId) {
+    return players.find((p) => p.id === playerId)
   }
 
   function registerTileRef(tileId) {
@@ -180,7 +179,8 @@ function GameBoard({ playerName, initialSave, onPlayAgain }) {
     }, TRUST_DELTA_DISPLAY_MS)
   }
 
-  function presentQuiz(card, describeResult, isAI = false) {
+  function presentQuiz(card, describeResult, actingPlayer) {
+    const isAI = actingPlayer.isAI
     return new Promise((resolve) => {
       quizResolverRef.current = resolve
       setActiveQuiz({
@@ -196,7 +196,7 @@ function GameBoard({ playerName, initialSave, onPlayAgain }) {
         setActiveQuiz((q) => (q ? { ...q, flipped: true } : q))
         if (isAI) {
           setTimeout(() => {
-            const isCorrect = rollAICorrectness(card.difficultyTier)
+            const isCorrect = rollAICorrectness(actingPlayer)
             finishQuiz(pickOptionForOutcome(card, isCorrect), isCorrect, describeResult)
           }, AI_THINK_MS)
         }
@@ -247,7 +247,7 @@ function GameBoard({ playerName, initialSave, onPlayAgain }) {
     const isCorrect = await presentQuiz(
       card,
       (correct) => (correct ? 'Acquired — module is clean' : 'Incorrect — trust penalty'),
-      isAIPlayer(playerId)
+      playerById(playerId)
     )
     if (isCorrect) {
       await flyModuleToPanel(tile, playerId)
@@ -266,7 +266,7 @@ function GameBoard({ playerName, initialSave, onPlayAgain }) {
     const isCorrect = await presentQuiz(
       card,
       (correct) => (correct ? 'Still clean' : 'Flagged glitchy'),
-      isAIPlayer(playerId)
+      playerById(playerId)
     )
     if (!isCorrect) {
       setModuleState((prev) => ({ ...prev, [tile.id]: { ...prev[tile.id], state: 'glitchy' } }))
@@ -282,20 +282,13 @@ function GameBoard({ playerName, initialSave, onPlayAgain }) {
     const isCorrect = await presentQuiz(
       card,
       (correct) => (correct ? `Trust +${NEUTRAL_BONUS}` : `Trust -${NEUTRAL_PENALTY}`),
-      isAIPlayer(playerId)
+      playerById(playerId)
     )
     applyAxisChange(playerId, { [axis]: isCorrect ? NEUTRAL_BONUS : -NEUTRAL_PENALTY }, `neutral:${tile.code}`)
   }
 
   async function applyLandingFee(tile, visitorId, ownerId) {
-    const fee = Math.abs(tile.ethicsWeight) * LANDING_FEE_MULTIPLIER
-    const irresponsible = tile.ethicsWeight < 0
-    // Irresponsible (technical) modules move a straight Accuracy transfer;
-    // responsible (ethics) modules move the module's own trust axis instead
-    // (or Fairness, for a responsible module with no axis of its own, like
-    // Privacy Filter) — same axis for both the visitor's debit and the
-    // owner's credit.
-    const axis = irresponsible ? 'accuracy' : tile.trustAxis || 'fairness'
+    const { axis, fee } = computeLandingFee(tile)
     // Logged unconditionally (not just when something's floored) so a full
     // trail of every landing fee is in the console if the two sides ever
     // look wrong again — cheap, and it's the exact interaction that's been
@@ -362,7 +355,7 @@ function GameBoard({ playerName, initialSave, onPlayAgain }) {
     // finished turn: new player, new turn count, final scores and ownership.
     setTurns((t) => t + 1)
     setIsMoving(false)
-    setCurrentPlayerIndex((prev) => (prev + 1) % players.length)
+    setCurrentPlayerIndex((prev) => nextPlayerIndex(prev, players.length))
   }
 
   // AI opponents roll for themselves — no button press needed.
