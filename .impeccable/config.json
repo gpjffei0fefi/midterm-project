@@ -1,0 +1,17 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "border-accent-on-rounded",
+        "value": "*",
+        "files": [
+          "src/App.css"
+        ],
+        "createdAt": "2026-10-10T06:36:24.354Z",
+        "reason": "Claude verified in-session: .mechanics__card has border-radius:0 (fully square, confirmed by reading the committed source) yet the finding persists against border-top:5px solid — no rounded corner remains to clash with; detector heuristic limitation, not a real defect."
+      }
+    ]
+  }
+}
