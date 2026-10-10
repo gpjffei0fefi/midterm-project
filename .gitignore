@@ -30,4 +30,7 @@ dist-ssr
 
 .vercel
 
+# Impeccable's local session cache (absolute machine paths, no project value)
+.impeccable/hook.cache.json
+
 .vercel

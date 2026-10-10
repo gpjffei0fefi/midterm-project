@@ -1,27 +1,86 @@
 :root {
-  /* Base: one deep near-black, plus three slightly lifted tints of it for
-     surfaces, so the pastel accents always read against the same dark. */
+  /* Original restyle (branch `restyle`): a Monopoly-like board-game palette,
+     kept deliberately original — no Hasbro trade dress (no felt+red-banner
+     lockup, no "Chance"/"Community Chest" wording, no top-hat mascot). Flat
+     fills, bold uniform ink outlines, one hard offset shadow for depth; no
+     gradients, no glassmorphism. See DESIGN.md for the full system. */
+
+  /* Ink: every outline and every piece of text, full stop. No separate
+     "dark surface" token exists any more — surfaces are light. */
   --ink: #16121f;
-  --ink-board: #1c1829;
-  --ink-panel: #252034;
-  --line-faint: rgba(200, 190, 235, 0.14);
-  --line-mid: rgba(200, 190, 235, 0.3);
-  --grid-line: rgba(200, 190, 235, 0.06);
 
-  /* Accents. Roles: pink = primary accent + penalties, blue = math /
-     technical / info, yellow = neutral spaces + highlights + winner,
-     green = ethics / responsible / clean / success. */
-  --pink: #ff9ecb;
-  --pink-bright: #ffc0dc;
-  --blue: #9be7ff;
-  --yellow: #fff3b0;
-  --green: #b4ff9f;
+  /* Surfaces: --felt is the table itself; --paper/--paper-deep are tints of
+     it (computed, not separately chosen), used for anything that should
+     read as sitting on the table rather than being the table: the board
+     face, tiles, cards, panels, modals. */
+  --felt: #cde6d0;
+  --paper: color-mix(in srgb, var(--felt) 35%, white 65%);
+  --paper-deep: color-mix(in srgb, var(--felt) 70%, white 30%);
 
-  /* Degraded (glitchy) state: the accents drained to a flat grey. */
-  --ghost: #8c86a0;
+  /* A soft ink-tinted line for the few places a full outline would be too
+     heavy (an empty meter track, a quiet list divider) — everywhere else
+     uses a solid --ink border per the brief's "bold uniform-weight ink
+     outlines" rule. */
+  --line-soft: color-mix(in srgb, var(--ink) 18%, transparent);
 
-  --text-bright: #f5f1fb;
-  --text-muted: #a8a2bc;
+  /* Monopoly-derived set colors: tile-set bands and small accents only,
+     never a large text background (per brief). */
+  --set-brown: #955436;
+  --set-lightblue: #aae0fa;
+  --set-magenta: #d93a96;
+  --set-orange: #f7941d;
+  --set-red: #ed1b24;
+  --set-yellow: #fef200;
+  --set-green: #1fb25a;
+  --set-darkblue: #0072bb;
+  --card-blue: #01aeee;
+  --card-orange: #f47321;
+  --deep-red: #c2151d;
+
+  /* Semantic layer (this project's own mapping onto the palette above, kept
+     close to the pre-restyle roles for continuity):
+     ethics / responsible / clean / correct -> --set-green
+     math / technical / accuracy            -> --card-blue
+     neutral spaces / transparency / highlight -> --set-yellow (fill only —
+       per brief, yellow and light-blue carry dark ink text, never serve as
+       the text color themselves)
+     primary accent / active turn / CTAs     -> --set-magenta
+     wrong answers / penalties / warnings    -> --set-red
+     Math deck card-back                    -> --card-blue
+     Ethics deck card-back                  -> --card-orange (kept distinct
+       from the "ethics/responsible" green above, which marks outcomes —
+       clean/correct — not deck identity)
+     Player 1 (human)  -> --card-blue
+     Player 2 (AI)     -> --set-magenta
+     Player 3 (AI)     -> --set-yellow */
+  --accent-primary: var(--set-magenta);
+  /* A lightened tint of --accent-primary, used only where ink text sits
+     directly on a solid magenta fill at normal (non-large) text size —
+     pure --set-magenta there measures 4.38:1 against --ink, just under the
+     4.5:1 WCAG AA floor. This keeps the exact given magenta everywhere else
+     (badges, borders, large text) and only nudges the specific button-fill
+     case that measured below the floor. */
+  --accent-primary-cta: color-mix(in srgb, var(--accent-primary) 88%, white);
+  --accent-ethics: var(--set-green);
+  --accent-math: var(--card-blue);
+  --accent-highlight: var(--set-yellow);
+  --accent-penalty: var(--set-red);
+
+  /* Glitchy / degraded state: a flat grey, not in the given palette (no
+     neutral grey was specified) — synthesized once here rather than drained
+     via opacity, so it stays a flat fill per the brief. */
+  --ghost: #9a9488;
+
+  /* Muted text: a tint of --ink, never grey-on-grey — always legible on
+     --felt, --paper, and --paper-deep, including the active-player row's
+     color-tinted background (measured worst case: the magenta player's
+     tint, which needed 70% to clear 4.5:1 with real margin). */
+  --ink-muted: color-mix(in srgb, var(--ink) 70%, transparent);
+
+  /* One hard offset shadow, used everywhere depth is needed. No blur, no
+     second shadow style. */
+  --shadow-hard: 4px 4px 0 var(--ink);
+  --shadow-hard-sm: 3px 3px 0 var(--ink);
 
   /* Lora for titles and "moments", Figtree for everything functional. Both
      are hosted by Google Fonts (see index.html). Figtree is the final body
@@ -29,7 +88,7 @@
   --serif: 'Lora', Georgia, 'Times New Roman', serif;
   --sans: 'Figtree', system-ui, -apple-system, 'Segoe UI', sans-serif;
 
-  color-scheme: dark;
+  color-scheme: light;
   font-family: var(--sans);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -44,12 +103,8 @@
 body {
   margin: 0;
   min-height: 100svh;
-  color: var(--text-bright);
-  background: var(--ink);
-  background-image:
-    linear-gradient(var(--grid-line) 1px, transparent 1px),
-    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
-  background-size: 32px 32px;
+  color: var(--ink);
+  background: var(--felt);
   font-variant-numeric: tabular-nums;
 }
 

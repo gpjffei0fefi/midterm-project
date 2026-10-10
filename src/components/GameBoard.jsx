@@ -31,6 +31,7 @@ import Tile from './Tile'
 import TrustPanel from './TrustPanel'
 import ControlPanel from './ControlPanel'
 import ModulesPanel from './ModulesPanel'
+import BoardLegend from './BoardLegend'
 import LandingQuiz from './LandingQuiz'
 import FlyingModuleChip from './FlyingModuleChip'
 import ModelReveal from './ModelReveal'
@@ -447,6 +448,7 @@ function GameBoard({ playerName, initialSave, onPlayAgain }) {
         </div>
       </div>
 
+      <BoardLegend />
       <ModulesPanel players={players} ownedByPlayer={ownedByPlayer} registerPanelRef={registerPanelRef} />
 
       {activeQuiz && <LandingQuiz quiz={activeQuiz} onSelectOption={handleSelectOption} />}

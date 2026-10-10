@@ -103,7 +103,10 @@ function LeaderboardScreen({ onClose, highlightId }) {
                 className={`leaderboard__row${row.id === highlightId ? ' leaderboard__row--you' : ''}`}
               >
                 <span className="leaderboard__rank">{index + 1}</span>
-                <span className="leaderboard__name">{row.name}</span>
+                <span className="leaderboard__name">
+                  {row.name}
+                  {row.id === highlightId && <span className="leaderboard__you-tag">You</span>}
+                </span>
                 <span
                   className="leaderboard__bars"
                   title={AXES.map(({ key, label }) => `${label} ${row[key]}`).join(', ')}

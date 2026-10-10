@@ -1,11 +1,19 @@
-/* Color roles: pink = primary accent + penalties, blue = math / technical,
-   yellow = neutral spaces + highlights + winner, green = ethics / responsible
-   / clean / success, ghost grey = glitchy. Titles use --serif (Lora);
-   everything functional uses --sans. Tokens live in index.css. */
+/* Original Monopoly-derived restyle (branch `restyle`): --felt is the table,
+   --paper/--paper-deep are light card-stock surfaces on it, --ink is every
+   outline and every piece of text. Flat fills, bold uniform ink outlines,
+   one hard offset shadow (--shadow-hard); no gradients, no glassmorphism.
+   Color roles: --accent-primary (magenta) = CTAs/active turn, --accent-math
+   (blue) = math/technical/accuracy, --accent-ethics (green) = ethics /
+   responsible / clean / correct, --accent-highlight (yellow) = neutral
+   spaces/transparency — a FILL only, always paired with --ink text, never
+   used as a text color — --accent-penalty (red) = wrong answers/penalties,
+   --ghost (grey) = glitchy — a fill/border/dot color only, never text (see
+   DESIGN.md). Titles use --serif (Lora); everything functional uses --sans.
+   Tokens live in index.css. */
 
 button:focus-visible,
 input:focus-visible {
-  outline: 2px solid var(--yellow);
+  outline: 2px solid var(--ink);
   outline-offset: 2px;
 }
 
@@ -33,10 +41,10 @@ input:focus-visible {
   gap: 6px;
   min-width: 620px;
   padding: 6px;
-  background: var(--ink-board);
-  border: 1px solid var(--line-mid);
+  background: var(--paper);
+  border: 3px solid var(--ink);
   border-radius: 12px;
-  box-shadow: 0 30px 60px -30px rgba(0, 0, 0, 0.7);
+  box-shadow: var(--shadow-hard);
 }
 
 /* -------------------------------------------------- tiles -------------------------------------------------- */
@@ -48,9 +56,12 @@ input:focus-visible {
   justify-content: flex-end;
   gap: 4px;
   padding: 10px 8px 8px;
-  border: 1px solid var(--line-faint);
-  border-radius: 8px;
-  background: var(--ink-panel);
+  border: 2px solid var(--ink);
+  /* Square top / round bottom: every tile carries a colored top band (its
+     module or neutral-space accent), so the top corners stay flat where
+     that band meets the border instead of rounding against it. */
+  border-radius: 0 0 8px 8px;
+  background: var(--paper-deep);
   overflow: visible;
 }
 
@@ -59,24 +70,25 @@ input:focus-visible {
   position: absolute;
   top: 8px;
   left: 8px;
-  width: 6px;
-  height: 6px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
-  background: var(--line-mid);
+  background: var(--ghost);
+  border: 1.5px solid var(--ink);
 }
 
 .tile__code {
   font-size: 10.5px;
   font-weight: 600;
   letter-spacing: 0.03em;
-  color: var(--text-muted);
+  color: var(--ink-muted);
 }
 
 .tile__label {
   font-size: 13px;
   line-height: 1.25;
   font-weight: 600;
-  color: var(--text-bright);
+  color: var(--ink);
 }
 
 .tile__icon {
@@ -93,27 +105,26 @@ input:focus-visible {
 }
 
 /* Module spaces: green = responsible (positive ethics weight), blue = performance. */
-.tile--responsible::before { background: var(--green); }
-.tile--responsible { border-top: 2px solid var(--green); }
+.tile--responsible::before { background: var(--accent-ethics); }
+.tile--responsible { border-top: 4px solid var(--accent-ethics); }
 
-.tile--performance::before { background: var(--blue); }
-.tile--performance { border-top: 2px solid var(--blue); }
+.tile--performance::before { background: var(--accent-math); }
+.tile--performance { border-top: 4px solid var(--accent-math); }
 
-/* Neutral spaces are yellow; the dot names the deck they draw from. */
+/* Neutral spaces are yellow (a flat tint, not a gradient); the dot names the deck. */
 .tile--ethics,
 .tile--math,
 .tile--start {
-  border-top: 2px solid var(--yellow);
-  background: linear-gradient(160deg, rgba(255, 243, 176, 0.09), var(--ink-panel) 60%);
+  border-top: 4px solid var(--accent-highlight);
+  background: color-mix(in srgb, var(--accent-highlight) 14%, var(--paper-deep));
 }
-.tile--ethics::before { background: var(--green); }
-.tile--math::before { background: var(--blue); }
-.tile--start::before { background: var(--yellow); }
-.tile--start .tile__label { color: var(--yellow); }
+.tile--ethics::before { background: var(--accent-ethics); }
+.tile--math::before { background: var(--accent-math); }
+.tile--start::before { background: var(--accent-highlight); }
 
-.tile--pass::before { background: var(--text-muted); }
-.tile--pass { border-top: 2px solid var(--line-mid); }
-.tile--pass .tile__label { color: var(--text-muted); }
+.tile--pass::before { background: var(--ghost); }
+.tile--pass { border-top: 4px solid var(--ghost); }
+.tile--pass .tile__label { color: var(--ink-muted); }
 
 /* corner tiles read as larger hub components */
 .tile--corner {
@@ -121,39 +132,33 @@ input:focus-visible {
 }
 
 .tile--landing {
-  animation: tile-landing-pulse 0.65s ease-out;
+  animation: tile-landing-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-@keyframes tile-landing-pulse {
-  0% {
-    box-shadow: 0 0 0 0 rgba(255, 243, 176, 0.6);
-    border-color: var(--yellow);
-  }
-  100% {
-    box-shadow: 0 0 0 16px rgba(255, 243, 176, 0);
-    border-color: var(--line-faint);
-  }
+@keyframes tile-landing-pop {
+  0% { transform: scale(1); border-color: var(--ink); }
+  40% { transform: scale(1.06); border-color: var(--accent-primary); }
+  100% { transform: scale(1); border-color: var(--ink); }
 }
 
 .tile--owned {
-  box-shadow: inset 0 0 0 1.5px var(--owner-color);
+  box-shadow: inset 0 0 0 3px var(--owner-color);
 }
 
 .tile__owner-mark {
   position: absolute;
   top: 6px;
   left: 20px;
-  width: 9px;
-  height: 9px;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
   background: var(--owner-color);
-  border: 1.5px solid var(--ink);
-  box-shadow: 0 0 0 1px var(--owner-color);
+  border: 2px solid var(--ink);
 }
 
 /* Glitchy: the accents drain to grey. The art swaps to its glitch version. */
 .tile--glitchy {
-  box-shadow: inset 0 0 0 1.5px var(--ghost);
+  box-shadow: inset 0 0 0 3px var(--ghost);
   border-top-color: var(--ghost);
 }
 
@@ -166,7 +171,7 @@ input:focus-visible {
 }
 
 .tile--glitchy .tile__label {
-  color: var(--ghost);
+  color: var(--ink-muted);
 }
 
 @keyframes glitch-flicker {
@@ -188,7 +193,7 @@ input:focus-visible {
 
 /* Glitchy art is drained toward grey so it reads as degraded. */
 .module-icon--glitchy {
-  filter: saturate(0.3) brightness(0.92);
+  filter: saturate(0.25) brightness(1.02);
 }
 
 /* Placeholder shapes, used only when a module's illustration is missing. */
@@ -196,6 +201,7 @@ input:focus-visible {
   display: block;
   width: 100%;
   height: 100%;
+  border: 2px solid var(--ink);
 }
 
 .module-shape--base { border-radius: 6px 6px 3px 3px; }
@@ -209,12 +215,12 @@ input:focus-visible {
   background-image: radial-gradient(circle, var(--ink) 28%, transparent 29%);
 }
 
-.module-shape--responsible { background-color: var(--green); }
-.module-shape--performance { background-color: var(--blue); }
+.module-shape--responsible { background-color: var(--accent-ethics); }
+.module-shape--performance { background-color: var(--accent-math); }
 
 .module-shape--glitchy {
   background-color: var(--ghost);
-  background-image: repeating-linear-gradient(135deg, rgba(22, 18, 31, 0.35) 0 2px, transparent 2px 5px);
+  background-image: repeating-linear-gradient(135deg, rgba(22, 18, 31, 0.25) 0 2px, transparent 2px 5px);
   animation: glitch-flicker 1.4s steps(6) infinite;
 }
 
@@ -235,8 +241,8 @@ input:focus-visible {
   margin: -9px 0 0 -9px;
   border-radius: 50%;
   background: var(--token-color);
-  border: 2px solid var(--ink);
-  box-shadow: 0 0 0 1.5px var(--token-color), 0 3px 8px rgba(0, 0, 0, 0.5);
+  border: 2.5px solid var(--ink);
+  box-shadow: var(--shadow-hard-sm);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -260,7 +266,7 @@ input:focus-visible {
   height: 6px;
   border-radius: 50%;
   background: var(--ink);
-  opacity: 0.55;
+  opacity: 0.6;
 }
 
 /* -------------------------------------------------- center plate -------------------------------------------------- */
@@ -268,9 +274,9 @@ input:focus-visible {
 .board__center {
   grid-row: 2 / span 3;
   grid-column: 2 / span 3;
-  border: 1px solid var(--line-faint);
+  border: 3px solid var(--ink);
   border-radius: 8px;
-  background: radial-gradient(circle at 30% 20%, rgba(255, 158, 203, 0.08), transparent 60%), var(--ink);
+  background: var(--paper);
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -280,15 +286,18 @@ input:focus-visible {
 
 .title-plate {
   text-align: left;
-  border-left: 3px solid var(--pink);
-  padding-left: 14px;
 }
 
 .title-plate__eyebrow {
+  display: inline-block;
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 700;
   letter-spacing: 0.02em;
-  color: var(--pink-bright);
+  color: var(--ink);
+  background: var(--accent-highlight);
+  border: 1.5px solid var(--ink);
+  border-radius: 999px;
+  padding: 2px 10px;
 }
 
 .title-plate__name {
@@ -297,6 +306,7 @@ input:focus-visible {
   letter-spacing: -0.01em;
   line-height: 1.15;
   margin: 4px 0 6px;
+  color: var(--ink);
 }
 
 /* -------------------------------------------------- control panel -------------------------------------------------- */
@@ -305,9 +315,9 @@ input:focus-visible {
   display: flex;
   align-items: center;
   gap: 12px;
-  border: 1px solid var(--line-faint);
+  border: 2px solid var(--ink);
   border-radius: 8px;
-  background: var(--ink-panel);
+  background: var(--paper-deep);
   padding: 10px 12px;
 }
 
@@ -320,18 +330,18 @@ input:focus-visible {
 }
 
 .control-panel__swatch {
-  width: 9px;
-  height: 9px;
+  width: 11px;
+  height: 11px;
   flex-shrink: 0;
   border-radius: 50%;
   background: var(--token-color);
-  box-shadow: 0 0 6px 0 var(--token-color);
+  border: 1.5px solid var(--ink);
 }
 
 .control-panel__turn-text {
   font-size: 13px;
   font-weight: 500;
-  color: var(--text-bright);
+  color: var(--ink);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -345,8 +355,9 @@ input:focus-visible {
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.05em;
-  color: var(--blue);
-  border: 1px solid var(--blue);
+  color: var(--ink);
+  background: var(--accent-math);
+  border: 1.5px solid var(--ink);
   border-radius: 4px;
   padding: 1px 4px;
   margin: 0 4px;
@@ -361,29 +372,27 @@ input:focus-visible {
   width: 42px;
   height: 42px;
   flex-shrink: 0;
-  border: 1px solid var(--line-mid);
+  border: 2px solid var(--ink);
   border-radius: 8px;
-  background: var(--ink);
+  background: var(--paper);
 }
 
 .dice__label {
   font-size: 8.5px;
   font-weight: 600;
   letter-spacing: 0.06em;
-  color: var(--text-muted);
+  color: var(--ink-muted);
 }
 
 .dice__value {
   font-size: 19px;
   font-weight: 700;
   line-height: 1;
-  color: var(--green);
-  text-shadow: 0 0 8px rgba(180, 255, 159, 0.55);
+  color: var(--ink);
 }
 
 .dice--rolling .dice__value {
-  color: var(--pink-bright);
-  text-shadow: 0 0 8px rgba(255, 192, 220, 0.6);
+  color: var(--accent-primary);
   animation: dice-shake 0.15s linear infinite;
 }
 
@@ -399,34 +408,40 @@ input:focus-visible {
   font-size: 13px;
   font-weight: 700;
   color: var(--ink);
-  background: var(--pink);
-  border: none;
+  background: var(--accent-primary-cta);
+  border: 2px solid var(--ink);
   border-radius: 8px;
-  padding: 10px 18px;
+  /* 13px (top padding) and 12px (bottom) with the 2px border land this at a
+     44px minimum touch target. */
+  padding: 13px 18px 12px;
+  box-shadow: var(--shadow-hard-sm);
   cursor: pointer;
-  transition: background 0.15s ease, transform 0.1s ease;
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
 }
 
 .roll-button:hover:not(:disabled) {
-  background: var(--pink-bright);
+  transform: translate(-1px, -1px);
+  box-shadow: 5px 5px 0 var(--ink);
 }
 
 .roll-button:active:not(:disabled) {
-  transform: scale(0.96);
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0 var(--ink);
 }
 
 .roll-button:disabled {
-  background: var(--line-mid);
-  color: var(--text-muted);
+  background: var(--paper-deep);
+  color: var(--ink-muted);
+  box-shadow: none;
   cursor: default;
 }
 
 /* -------------------------------------------------- trust panel -------------------------------------------------- */
 
 .trust-panel {
-  border: 1px solid var(--line-faint);
+  border: 2px solid var(--ink);
   border-radius: 8px;
-  background: var(--ink-panel);
+  background: var(--paper-deep);
   padding: 12px 14px 14px;
 }
 
@@ -439,9 +454,9 @@ input:focus-visible {
 
 .trust-panel__title {
   font-size: 11.5px;
-  font-weight: 600;
+  font-weight: 700;
   letter-spacing: 0.02em;
-  color: var(--text-muted);
+  color: var(--ink-muted);
 }
 
 .trust-panel__rows {
@@ -454,15 +469,17 @@ input:focus-visible {
   padding: 5px 5px 6px;
   margin: 0 -5px;
   border-radius: 6px;
-  transition: background 0.2s ease;
+  border: 1.5px solid transparent;
+  transition: background 0.2s ease, border-color 0.2s ease;
 }
 
 .trust-player--active {
-  background: color-mix(in srgb, var(--token-color) 13%, transparent);
+  background: color-mix(in srgb, var(--token-color) 20%, var(--paper-deep));
+  border-color: var(--ink);
 }
 
 .trust-player--active .trust-player__name {
-  color: var(--pink-bright);
+  color: var(--ink);
   font-weight: 700;
 }
 
@@ -474,19 +491,19 @@ input:focus-visible {
 }
 
 .trust-player__swatch {
-  width: 9px;
-  height: 9px;
+  width: 10px;
+  height: 10px;
   flex-shrink: 0;
   border-radius: 50%;
   background: var(--token-color);
-  box-shadow: 0 0 6px 0 var(--token-color);
+  border: 1.5px solid var(--ink);
 }
 
 .trust-player__name {
   flex: 1;
   font-size: 12.5px;
   font-weight: 500;
-  color: var(--text-bright);
+  color: var(--ink);
   white-space: nowrap;
 }
 
@@ -505,28 +522,28 @@ input:focus-visible {
 
 .trust-axis__label {
   font-size: 9.5px;
-  font-weight: 600;
+  font-weight: 700;
   letter-spacing: 0.05em;
-  color: var(--text-muted);
+  color: var(--ink-muted);
 }
 
 .trust-axis__meter {
-  height: 5px;
+  height: 6px;
   border-radius: 3px;
-  background: rgba(200, 190, 235, 0.14);
+  background: var(--line-soft);
+  border: 1px solid var(--ink);
   overflow: hidden;
 }
 
 .trust-axis__fill {
   height: 100%;
-  border-radius: 3px;
   transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Accuracy is technical (blue), fairness is ethical (green), transparency is light (yellow). */
-.trust-axis__fill--accuracy { background: var(--blue); }
-.trust-axis__fill--fairness { background: var(--green); }
-.trust-axis__fill--transparency { background: var(--yellow); }
+/* Accuracy is technical (blue), fairness is ethical (green), transparency is highlight (yellow). */
+.trust-axis__fill--accuracy { background: var(--accent-math); }
+.trust-axis__fill--fairness { background: var(--accent-ethics); }
+.trust-axis__fill--transparency { background: var(--accent-highlight); }
 
 .trust-row__value-wrap {
   position: relative;
@@ -536,7 +553,7 @@ input:focus-visible {
   display: block;
   font-size: 12.5px;
   font-weight: 700;
-  color: var(--text-muted);
+  color: var(--ink);
   text-align: right;
 }
 
@@ -550,15 +567,47 @@ input:focus-visible {
   animation: trust-delta-float 1.1s ease-out forwards;
 }
 
-.trust-row__delta--positive { color: var(--green); }
-.trust-row__delta--negative { color: var(--pink); }
-.trust-row__delta--floored { color: var(--ghost); }
+.trust-row__delta--positive { color: var(--accent-ethics); }
+.trust-row__delta--negative { color: var(--accent-penalty); }
+.trust-row__delta--floored { color: var(--ink-muted); }
 
 @keyframes trust-delta-float {
   0% { opacity: 0; transform: translateY(4px); }
   15% { opacity: 1; transform: translateY(0); }
   100% { opacity: 0; transform: translateY(-14px); }
 }
+
+/* -------------------------------------------------- board legend -------------------------------------------------- */
+
+.board-legend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px 16px;
+  width: 100%;
+  max-width: 660px;
+}
+
+.board-legend__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--ink-muted);
+}
+
+.board-legend__swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 1.5px solid var(--ink);
+}
+
+.board-legend__swatch--math { background: var(--accent-math); }
+.board-legend__swatch--ethics { background: var(--accent-ethics); }
+.board-legend__swatch--highlight { background: var(--accent-highlight); }
+.board-legend__swatch--ghost { background: var(--ghost); }
 
 /* -------------------------------------------------- modules panel -------------------------------------------------- */
 
@@ -574,9 +623,9 @@ input:focus-visible {
 .modules-panel__column {
   flex: 1;
   min-width: 170px;
-  border: 1px solid var(--line-faint);
+  border: 2px solid var(--ink);
   border-radius: 10px;
-  background: var(--ink-panel);
+  background: var(--paper-deep);
   padding: 10px 12px;
 }
 
@@ -588,17 +637,17 @@ input:focus-visible {
 }
 
 .modules-panel__swatch {
-  width: 9px;
-  height: 9px;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
   background: var(--token-color);
-  box-shadow: 0 0 6px 0 var(--token-color);
+  border: 1.5px solid var(--ink);
 }
 
 .modules-panel__name {
   font-size: 12.5px;
   font-weight: 600;
-  color: var(--text-bright);
+  color: var(--ink);
 }
 
 .modules-panel__chips {
@@ -611,7 +660,7 @@ input:focus-visible {
 
 .modules-panel__empty {
   font-size: 11.5px;
-  color: var(--text-muted);
+  color: var(--ink-muted);
   font-style: italic;
 }
 
@@ -620,12 +669,12 @@ input:focus-visible {
   align-items: center;
   gap: 5px;
   padding: 2px 9px 2px 3px;
-  border: 1.5px solid;
+  border: 2px solid;
   border-radius: 8px;
-  background: var(--ink);
+  background: var(--paper);
   font-size: 11px;
   font-weight: 700;
-  color: var(--text-bright);
+  color: var(--ink);
   cursor: default;
 }
 
@@ -636,13 +685,13 @@ input:focus-visible {
   flex-shrink: 0;
 }
 
-.module-chip--responsible { border-color: var(--green); }
-.module-chip--performance { border-color: var(--blue); }
+.module-chip--responsible { border-color: var(--accent-ethics); }
+.module-chip--performance { border-color: var(--accent-math); }
 
 .module-chip--glitchy {
   border-color: var(--ghost);
   border-style: dashed;
-  color: var(--ghost);
+  color: var(--ink-muted);
 }
 
 /* -------------------------------------------------- deck tray -------------------------------------------------- */
@@ -662,10 +711,11 @@ input:focus-visible {
   width: 120px;
   height: 84px;
   margin: 6px 4px 0;
-  border: 1px solid var(--line-mid);
-  border-radius: 10px;
-  background: var(--ink-panel);
-  color: var(--text-bright);
+  border: 2px solid var(--ink);
+  /* Square top / round bottom: the deck's colored top band meets flat corners. */
+  border-radius: 0 0 10px 10px;
+  background: var(--paper);
+  color: var(--ink);
   font-family: var(--sans);
   cursor: pointer;
   display: flex;
@@ -681,9 +731,9 @@ input:focus-visible {
   content: '';
   position: absolute;
   inset: 0;
-  border: 1px solid var(--line-faint);
+  border: 2px solid var(--ink);
   border-radius: 10px;
-  background: var(--ink-panel);
+  background: var(--paper);
   z-index: -1;
 }
 
@@ -704,9 +754,9 @@ input:focus-visible {
   opacity: 0.55;
 }
 
-/* Decks: math is blue, ethics is green. */
-.deck-stack--math { border-top: 3px solid var(--blue); }
-.deck-stack--ethics { border-top: 3px solid var(--green); }
+/* Decks: math is blue, ethics is orange (its own card-back color, distinct from the "ethics/responsible" green used for outcomes). */
+.deck-stack--math { border-top: 5px solid var(--accent-math); }
+.deck-stack--ethics { border-top: 5px solid var(--card-orange); }
 
 .deck-stack__label {
   font-weight: 700;
@@ -715,7 +765,7 @@ input:focus-visible {
 
 .deck-stack__count {
   font-size: 11px;
-  color: var(--text-muted);
+  color: var(--ink-muted);
 }
 
 /* -------------------------------------------------- quiz overlay -------------------------------------------------- */
@@ -727,7 +777,7 @@ input:focus-visible {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(22, 18, 31, 0.8);
+  background: color-mix(in srgb, var(--ink) 55%, transparent);
   padding: 24px;
   animation: overlay-fade-in 0.2s ease-out;
 }
@@ -754,18 +804,18 @@ input:focus-visible {
   font-family: var(--sans);
   font-size: 13px;
   font-weight: 600;
-  color: var(--text-bright);
-  background: transparent;
-  border: 1px solid var(--line-mid);
+  color: var(--ink);
+  background: var(--paper);
+  border: 2px solid var(--ink);
   border-radius: 8px;
   padding: 8px 18px;
   cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease;
+  transition: transform 0.1s ease;
 }
 
 .quiz-overlay__close:hover {
-  background: var(--ink-panel);
-  border-color: var(--pink);
+  transform: translate(-1px, -1px);
+  box-shadow: var(--shadow-hard-sm);
 }
 
 /* -------------------------------------------------- quiz card -------------------------------------------------- */
@@ -792,9 +842,11 @@ input:focus-visible {
   position: absolute;
   inset: 0;
   backface-visibility: hidden;
-  border-radius: 14px;
-  border: 1px solid var(--line-mid);
-  box-shadow: 0 24px 48px -20px rgba(0, 0, 0, 0.75);
+  /* Square top / round bottom: both faces always carry a deck-colored top
+     band, so the top corners stay flat where that band meets the border. */
+  border-radius: 0 0 14px 14px;
+  border: 3px solid var(--ink);
+  box-shadow: var(--shadow-hard);
   display: flex;
   flex-direction: column;
 }
@@ -803,40 +855,36 @@ input:focus-visible {
   align-items: center;
   justify-content: center;
   gap: 6px;
-  background:
-    repeating-linear-gradient(135deg, rgba(200, 190, 235, 0.06) 0 2px, transparent 2px 14px),
-    var(--ink-panel);
+  background: var(--paper-deep);
 }
 
-.quiz-card--math .quiz-card__face--back { border-top: 4px solid var(--blue); }
-.quiz-card--ethics .quiz-card__face--back { border-top: 4px solid var(--green); }
+.quiz-card--math .quiz-card__face--back { border-top: 6px solid var(--accent-math); }
+.quiz-card--ethics .quiz-card__face--back { border-top: 6px solid var(--card-orange); }
 
 .quiz-card__back-mark {
   word-spacing: -0.06em;
   font-family: var(--serif);
   font-weight: 700;
   font-size: 32px;
+  color: var(--ink);
 }
-
-.quiz-card--math .quiz-card__back-mark { color: var(--blue); }
-.quiz-card--ethics .quiz-card__back-mark { color: var(--green); }
 
 .quiz-card__back-sub {
   font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.06em;
-  color: var(--text-muted);
+  color: var(--ink-muted);
 }
 
 .quiz-card__face--front {
   transform: rotateY(180deg);
-  background: var(--ink);
+  background: var(--paper);
   padding: 18px 18px 20px;
   gap: 14px;
 }
 
-.quiz-card--math .quiz-card__face--front { border-top: 4px solid var(--blue); }
-.quiz-card--ethics .quiz-card__face--front { border-top: 4px solid var(--green); }
+.quiz-card--math .quiz-card__face--front { border-top: 6px solid var(--accent-math); }
+.quiz-card--ethics .quiz-card__face--front { border-top: 6px solid var(--card-orange); }
 
 .quiz-card__header {
   display: flex;
@@ -847,13 +895,17 @@ input:focus-visible {
 .quiz-card__id {
   font-size: 11px;
   font-weight: 500;
-  color: var(--text-muted);
+  color: var(--ink-muted);
 }
 
 .quiz-card__tier {
   font-size: 11px;
   font-weight: 700;
-  color: var(--yellow);
+  color: var(--ink);
+  background: var(--accent-highlight);
+  border: 1.5px solid var(--ink);
+  border-radius: 4px;
+  padding: 1px 6px;
 }
 
 .quiz-card__prompt {
@@ -864,7 +916,7 @@ input:focus-visible {
   align-items: center;
   font-size: 16px;
   line-height: 1.45;
-  color: var(--text-bright);
+  color: var(--ink);
 }
 
 /* margin:auto centres short prompts but lets long ones scroll from the top. */
@@ -885,32 +937,32 @@ input:focus-visible {
   text-align: left;
   font-family: var(--sans);
   font-size: 13.5px;
-  color: var(--text-bright);
-  background: var(--ink-panel);
-  border: 1px solid var(--line-faint);
+  color: var(--ink);
+  background: var(--paper-deep);
+  border: 2px solid var(--ink);
   border-radius: 8px;
   padding: 10px 12px;
   cursor: pointer;
-  transition: border-color 0.15s ease, background 0.15s ease;
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
 }
 
 .quiz-card__option:hover {
-  border-color: var(--line-mid);
+  transform: translate(-1px, -1px);
+  box-shadow: var(--shadow-hard-sm);
 }
 
 .quiz-card__option--selected {
-  border-color: var(--pink);
-  background: color-mix(in srgb, var(--pink) 14%, var(--ink-panel));
+  background: color-mix(in srgb, var(--accent-primary) 22%, var(--paper-deep));
 }
 
 .quiz-card__option--correct {
-  border-color: var(--green);
-  background: color-mix(in srgb, var(--green) 16%, var(--ink-panel));
+  border-color: var(--accent-ethics);
+  background: color-mix(in srgb, var(--accent-ethics) 22%, var(--paper-deep));
 }
 
 .quiz-card__option--wrong {
-  border-color: var(--pink);
-  background: color-mix(in srgb, var(--pink) 16%, var(--ink-panel));
+  border-color: var(--accent-penalty);
+  background: color-mix(in srgb, var(--accent-penalty) 18%, var(--paper-deep));
 }
 
 .quiz-card__options--locked .quiz-card__option {
@@ -918,13 +970,13 @@ input:focus-visible {
 }
 
 .quiz-card__options--locked .quiz-card__option:not(.quiz-card__option--correct):not(.quiz-card__option--wrong) {
-  opacity: 0.4;
+  opacity: 0.45;
 }
 
 .quiz-card__option-letter {
   font-size: 12px;
   font-weight: 700;
-  color: var(--text-muted);
+  color: var(--ink-muted);
   flex-shrink: 0;
 }
 
@@ -935,20 +987,21 @@ input:focus-visible {
 /* -------------------------------------------------- quiz resolution cues -------------------------------------------------- */
 
 .quiz-card--correct .quiz-card__face--front {
-  border-top-color: var(--green);
-  background: color-mix(in srgb, var(--green) 8%, var(--ink));
+  border-top-color: var(--accent-ethics);
+  background: color-mix(in srgb, var(--accent-ethics) 14%, var(--paper));
   animation: card-result-pulse-correct 0.6s ease-out;
 }
 
 .quiz-card--wrong .quiz-card__face--front {
-  border-top-color: var(--pink);
-  background: color-mix(in srgb, var(--pink) 9%, var(--ink));
+  border-top-color: var(--accent-penalty);
+  background: color-mix(in srgb, var(--accent-penalty) 14%, var(--paper));
   animation: card-result-shake-wrong 0.45s ease-out;
 }
 
 @keyframes card-result-pulse-correct {
-  0% { box-shadow: 0 0 0 0 rgba(180, 255, 159, 0.55); }
-  100% { box-shadow: 0 0 0 20px rgba(180, 255, 159, 0); }
+  0% { box-shadow: var(--shadow-hard); }
+  50% { box-shadow: 8px 8px 0 var(--accent-ethics); }
+  100% { box-shadow: var(--shadow-hard); }
 }
 
 @keyframes card-result-shake-wrong {
@@ -961,27 +1014,26 @@ input:focus-visible {
 
 .quiz-outcome {
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 700;
   padding: 8px 14px;
   border-radius: 8px;
   text-align: center;
+  border: 2px solid var(--ink);
 }
 
 .quiz-outcome--correct {
-  color: var(--green);
-  border: 1px solid var(--green);
-  background: color-mix(in srgb, var(--green) 12%, transparent);
+  color: var(--ink);
+  background: color-mix(in srgb, var(--accent-ethics) 35%, var(--paper));
 }
 
 .quiz-outcome--wrong {
-  color: var(--pink);
-  border: 1px solid var(--pink);
-  background: color-mix(in srgb, var(--pink) 12%, transparent);
+  color: var(--ink);
+  background: color-mix(in srgb, var(--accent-penalty) 25%, var(--paper));
 }
 
 .quiz-outcome--thinking {
-  color: var(--text-muted);
-  border: 1px dashed var(--line-mid);
+  color: var(--ink-muted);
+  border-style: dashed;
   font-style: italic;
   font-weight: 500;
 }
@@ -998,11 +1050,11 @@ input:focus-visible {
   gap: 4px;
   font-size: 12px;
   font-weight: 700;
-  color: var(--text-bright);
-  background: var(--ink-panel);
-  border: 1.5px solid;
+  color: var(--ink);
+  background: var(--paper);
+  border: 2.5px solid;
   border-radius: 8px;
-  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.7);
+  box-shadow: var(--shadow-hard);
   pointer-events: none;
   transition-property: top, left, width, height, transform, opacity;
   transition-timing-function: ease-in-out;
@@ -1014,8 +1066,8 @@ input:focus-visible {
   aspect-ratio: 1;
 }
 
-.flying-module--responsible { border-color: var(--green); }
-.flying-module--performance { border-color: var(--blue); }
+.flying-module--responsible { border-color: var(--accent-ethics); }
+.flying-module--performance { border-color: var(--accent-math); }
 
 /* -------------------------------------------------- model reveal -------------------------------------------------- */
 
@@ -1028,9 +1080,7 @@ input:focus-visible {
   justify-content: center;
   padding: 40px 16px;
   overflow-y: auto;
-  background:
-    radial-gradient(circle at 50% 12%, rgba(255, 158, 203, 0.12), transparent 55%),
-    rgba(22, 18, 31, 0.97);
+  background: color-mix(in srgb, var(--ink) 75%, transparent);
   animation: overlay-fade-in 0.3s ease-out;
 }
 
@@ -1045,12 +1095,22 @@ input:focus-visible {
 
 .model-reveal__header {
   text-align: center;
+  background: var(--paper);
+  border: 3px solid var(--ink);
+  border-radius: 12px;
+  padding: 18px 20px;
+  box-shadow: var(--shadow-hard);
 }
 
 .model-reveal__eyebrow {
+  display: inline-block;
   font-size: 12px;
-  font-weight: 600;
-  color: var(--pink-bright);
+  font-weight: 700;
+  color: var(--ink);
+  background: var(--accent-highlight);
+  border: 1.5px solid var(--ink);
+  border-radius: 999px;
+  padding: 2px 10px;
   letter-spacing: 0.03em;
 }
 
@@ -1059,6 +1119,7 @@ input:focus-visible {
   font-weight: 700;
   line-height: 1.1;
   margin-top: 6px;
+  color: var(--ink);
 }
 
 .model-reveal__announcement {
@@ -1067,8 +1128,8 @@ input:focus-visible {
   margin-top: 12px;
   font-family: var(--serif);
   font-size: clamp(17px, 2.6vw, 23px);
-  font-weight: 500;
-  color: var(--yellow);
+  font-weight: 600;
+  color: var(--ink);
   opacity: 0;
   transition: opacity 0.5s ease;
 }
@@ -1093,46 +1154,41 @@ input:focus-visible {
   align-items: center;
   gap: 14px;
   padding: 24px 14px 18px;
-  border: 1px solid var(--line-mid);
+  border: 3px solid var(--ink);
   border-radius: 14px;
-  background: var(--ink-panel);
-  transition: opacity 0.4s ease, filter 0.4s ease, border-color 0.4s ease, box-shadow 0.4s ease;
+  background: var(--paper);
+  transition: opacity 0.4s ease, filter 0.4s ease, box-shadow 0.4s ease;
+  box-shadow: var(--shadow-hard-sm);
 }
 
 .reveal-card--pending {
-  opacity: 0.4;
-  filter: grayscale(0.6);
+  opacity: 0.45;
+  filter: grayscale(0.7);
 }
 
 .reveal-card--active {
-  border-color: var(--token-color);
-  box-shadow: 0 0 0 1.5px var(--token-color);
+  box-shadow: var(--shadow-hard), inset 0 0 0 2px var(--token-color);
 }
 
 .reveal-card--winner {
-  border-color: var(--yellow);
-  animation: winner-glow 1.8s ease-in-out infinite;
+  box-shadow: 6px 6px 0 var(--accent-highlight);
 }
 
 .reveal-card__badge {
   word-spacing: -0.06em;
   position: absolute;
-  top: -13px;
+  top: -15px;
   left: 50%;
   transform: translateX(-50%);
-  background: var(--yellow);
+  background: var(--accent-highlight);
   color: var(--ink);
+  border: 2px solid var(--ink);
   font-family: var(--serif);
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 700;
   padding: 3px 14px;
   border-radius: 999px;
   animation: badge-pop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both;
-}
-
-@keyframes winner-glow {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 243, 176, 0.5); }
-  50% { box-shadow: 0 0 24px 3px rgba(255, 243, 176, 0.5); }
 }
 
 @keyframes badge-pop {
@@ -1147,11 +1203,11 @@ input:focus-visible {
 }
 
 .reveal-card__swatch {
-  width: 10px;
-  height: 10px;
+  width: 11px;
+  height: 11px;
   border-radius: 50%;
   background: var(--token-color);
-  box-shadow: 0 0 8px 0 var(--token-color);
+  border: 1.5px solid var(--ink);
 }
 
 .reveal-card__name {
@@ -1159,7 +1215,7 @@ input:focus-visible {
   font-family: var(--serif);
   font-size: 18px;
   font-weight: 600;
-  color: var(--text-bright);
+  color: var(--ink);
 }
 
 .reveal-card__creature {
@@ -1179,7 +1235,7 @@ input:focus-visible {
   font-size: 34px;
   font-weight: 700;
   line-height: 1;
-  color: var(--text-bright);
+  color: var(--ink);
   text-align: center;
   margin-bottom: 10px;
 }
@@ -1188,7 +1244,7 @@ input:focus-visible {
   display: block;
   text-align: center;
   font-size: 12px;
-  color: var(--text-muted);
+  color: var(--ink-muted);
   font-style: italic;
 }
 
@@ -1228,10 +1284,10 @@ input:focus-visible {
   display: block;
   width: 100%;
   height: 100%;
-  border: 1.5px dashed rgba(245, 241, 251, 0.8);
+  border: 2px dashed var(--ink);
   border-radius: 50%;
-  background: rgba(22, 18, 31, 0.22);
-  box-shadow: 0 0 0 1.5px rgba(22, 18, 31, 0.55);
+  background: var(--paper-deep);
+  opacity: 0.6;
 }
 
 @keyframes part-snap {
@@ -1242,7 +1298,7 @@ input:focus-visible {
 
 .creature__empty {
   font-size: 12px;
-  color: var(--text-muted);
+  color: var(--ink-muted);
   font-style: italic;
 }
 
@@ -1254,43 +1310,37 @@ input:focus-visible {
 .submit-score__button {
   font-family: var(--sans);
   font-size: 13px;
-  font-weight: 600;
-  color: var(--text-bright);
-  background: transparent;
-  border: 1px solid var(--line-mid);
+  font-weight: 700;
+  color: var(--ink);
+  background: var(--paper);
+  border: 2px solid var(--ink);
   border-radius: 8px;
   padding: 8px 16px;
   cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease;
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
 }
 
 .leaderboard-open:hover,
 .reveal-actions__button:hover,
-.leaderboard__button:hover:not(:disabled) {
-  background: var(--ink-panel);
-  border-color: var(--pink);
+.leaderboard__button:hover:not(:disabled),
+.submit-score__button:hover:not(:disabled) {
+  transform: translate(-1px, -1px);
+  box-shadow: var(--shadow-hard-sm);
 }
 
 .leaderboard__button:disabled,
 .submit-score__button:disabled {
-  color: var(--text-muted);
+  color: var(--ink-muted);
   cursor: default;
 }
 
 .submit-score__button {
-  font-weight: 700;
-  color: var(--ink);
-  background: var(--pink);
-  border-color: var(--pink);
-}
-
-.submit-score__button:hover:not(:disabled) {
-  background: var(--pink-bright);
+  background: var(--accent-primary-cta);
 }
 
 .submit-score__button:disabled {
-  background: var(--line-mid);
-  border-color: var(--line-mid);
+  background: var(--paper-deep);
+  box-shadow: none;
 }
 
 .reveal-actions {
@@ -1308,19 +1358,22 @@ input:focus-visible {
   flex-direction: column;
   gap: 10px;
   padding: 14px 16px;
-  border: 1px solid var(--line-mid);
+  border: 2px solid var(--ink);
   border-radius: 12px;
-  background: var(--ink-panel);
+  background: var(--paper);
 }
 
 .submit-score__prompt {
   font-size: 14px;
   line-height: 1.4;
-  color: var(--text-bright);
+  color: var(--ink);
 }
 
 .submit-score__prompt strong {
-  color: var(--yellow);
+  color: var(--ink);
+  background: var(--accent-highlight);
+  padding: 0 4px;
+  border-radius: 3px;
 }
 
 .submit-score__row {
@@ -1332,7 +1385,7 @@ input:focus-visible {
 
 .submit-score__label {
   font-size: 12.5px;
-  color: var(--text-muted);
+  color: var(--ink-muted);
 }
 
 .submit-score__input {
@@ -1340,16 +1393,16 @@ input:focus-visible {
   min-width: 140px;
   font-family: var(--sans);
   font-size: 14px;
-  color: var(--text-bright);
-  background: var(--ink);
-  border: 1px solid var(--line-mid);
+  color: var(--ink);
+  background: var(--paper-deep);
+  border: 2px solid var(--ink);
   border-radius: 8px;
   padding: 8px 10px;
 }
 
 .submit-score__error {
   font-size: 13px;
-  color: var(--pink);
+  color: var(--accent-penalty);
 }
 
 .leaderboard-screen {
@@ -1361,7 +1414,7 @@ input:focus-visible {
   justify-content: center;
   padding: 32px 16px;
   overflow-y: auto;
-  background: rgba(22, 18, 31, 0.92);
+  background: color-mix(in srgb, var(--ink) 70%, transparent);
 }
 
 .leaderboard {
@@ -1371,10 +1424,10 @@ input:focus-visible {
   flex-direction: column;
   gap: 14px;
   padding: 20px 20px 22px;
-  border: 1px solid var(--line-mid);
+  border: 3px solid var(--ink);
   border-radius: 14px;
-  background: var(--ink-board);
-  box-shadow: 0 30px 60px -30px rgba(0, 0, 0, 0.8);
+  background: var(--paper);
+  box-shadow: var(--shadow-hard);
 }
 
 .leaderboard__header {
@@ -1390,12 +1443,13 @@ input:focus-visible {
   font-weight: 700;
   letter-spacing: -0.01em;
   line-height: 1.1;
+  color: var(--ink);
 }
 
 .leaderboard__subtitle {
   margin-top: 4px;
   font-size: 13px;
-  color: var(--text-muted);
+  color: var(--ink-muted);
 }
 
 .leaderboard__actions {
@@ -1408,8 +1462,8 @@ input:focus-visible {
   flex-wrap: wrap;
   gap: 14px;
   font-size: 11.5px;
-  font-weight: 500;
-  color: var(--text-muted);
+  font-weight: 600;
+  color: var(--ink-muted);
 }
 
 .leaderboard__legend-item {
@@ -1428,7 +1482,7 @@ input:focus-visible {
   padding: 28px 8px;
   text-align: center;
   font-size: 14px;
-  color: var(--text-muted);
+  color: var(--ink-muted);
 }
 
 .leaderboard__message p + .leaderboard__button {
@@ -1450,32 +1504,45 @@ input:focus-visible {
   align-items: center;
   gap: 10px;
   padding: 8px 10px;
-  border: 1px solid var(--line-faint);
-  border-left: 3px solid transparent;
+  border: 2px solid var(--ink);
   border-radius: 8px;
-  background: var(--ink-panel);
+  background: var(--paper-deep);
 }
 
 .leaderboard__row--you {
-  border-left-color: var(--pink);
-  background: color-mix(in srgb, var(--pink) 14%, var(--ink-panel));
+  background: color-mix(in srgb, var(--accent-primary) 16%, var(--paper-deep));
+}
+
+.leaderboard__you-tag {
+  display: inline-block;
+  margin-left: 6px;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--ink);
+  background: var(--accent-primary-cta);
+  border: 1.5px solid var(--ink);
+  border-radius: 999px;
+  padding: 1px 7px;
+  vertical-align: middle;
 }
 
 .leaderboard__rank {
   font-size: 12.5px;
-  font-weight: 600;
-  color: var(--text-muted);
+  font-weight: 700;
+  color: var(--ink-muted);
 }
 
 .leaderboard__row:first-child .leaderboard__rank {
-  color: var(--yellow);
-  font-weight: 700;
+  color: var(--ink);
+  background: var(--accent-highlight);
+  border-radius: 999px;
+  padding: 1px 7px;
 }
 
 .leaderboard__name {
   font-size: 14.5px;
   font-weight: 500;
-  color: var(--text-bright);
+  color: var(--ink);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1491,7 +1558,8 @@ input:focus-visible {
   display: block;
   height: 5px;
   border-radius: 3px;
-  background: rgba(200, 190, 235, 0.14);
+  background: var(--line-soft);
+  border: 1px solid var(--ink);
   overflow: hidden;
 }
 
@@ -1503,7 +1571,7 @@ input:focus-visible {
   font-size: 15.5px;
   font-weight: 700;
   text-align: right;
-  color: var(--text-bright);
+  color: var(--ink);
 }
 
 /* -------------------------------------------------- responsive -------------------------------------------------- */
@@ -1535,7 +1603,6 @@ input:focus-visible {
   .quiz-card--correct .quiz-card__face--front,
   .quiz-card--wrong .quiz-card__face--front,
   .model-reveal,
-  .reveal-card--winner,
   .reveal-card__badge,
   .creature-piece {
     animation: none;
@@ -1584,10 +1651,10 @@ input:focus-visible {
   gap: 18px;
   padding: 32px 28px;
   text-align: center;
-  background: var(--ink-board);
-  border: 1px solid var(--line-mid);
+  background: var(--paper);
+  border: 3px solid var(--ink);
   border-radius: 16px;
-  box-shadow: 0 30px 60px -30px rgba(0, 0, 0, 0.7);
+  box-shadow: var(--shadow-hard);
 }
 
 .intro__panel--start { max-width: 520px; }
@@ -1596,29 +1663,29 @@ input:focus-visible {
 
 .intro__eyebrow {
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--text-muted);
+  color: var(--ink-muted);
 }
 
 .intro__title {
   font-size: clamp(34px, 6vw, 48px);
   font-weight: 700;
   line-height: 1.1;
-  color: var(--pink);
+  color: var(--accent-primary);
 }
 
 .intro__title--small {
   font-size: clamp(26px, 4vw, 32px);
-  color: var(--text-bright);
+  color: var(--ink);
 }
 
 .intro__lead {
   max-width: 52ch;
   font-size: 16px;
   line-height: 1.5;
-  color: var(--text-bright);
+  color: var(--ink);
 }
 
 .intro__button {
@@ -1626,27 +1693,32 @@ input:focus-visible {
   font-size: 15px;
   font-weight: 700;
   color: var(--ink);
-  background: var(--pink);
-  border: 1px solid var(--pink);
+  background: var(--accent-primary-cta);
+  border: 2.5px solid var(--ink);
   border-radius: 10px;
   padding: 11px 32px;
+  box-shadow: var(--shadow-hard-sm);
   cursor: pointer;
-  transition: background 0.15s ease;
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
 }
 
 .intro__button:hover {
-  background: var(--pink-bright);
+  transform: translate(-1px, -1px);
+  box-shadow: 5px 5px 0 var(--ink);
+}
+
+.intro__button:active {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0 var(--ink);
 }
 
 .intro__button--ghost {
-  color: var(--text-bright);
-  background: transparent;
-  border-color: var(--line-mid);
+  color: var(--ink);
+  background: var(--paper);
 }
 
 .intro__button--ghost:hover {
-  background: var(--ink-panel);
-  border-color: var(--pink);
+  background: var(--paper-deep);
 }
 
 .intro__field {
@@ -1660,15 +1732,15 @@ input:focus-visible {
 .intro__label {
   font-size: 12px;
   font-weight: 600;
-  color: var(--text-muted);
+  color: var(--ink-muted);
 }
 
 .intro__input {
   font-family: var(--sans);
   font-size: 16px;
-  color: var(--text-bright);
-  background: var(--ink-panel);
-  border: 1px solid var(--line-mid);
+  color: var(--ink);
+  background: var(--paper-deep);
+  border: 2px solid var(--ink);
   border-radius: 8px;
   padding: 10px 12px;
 }
@@ -1683,23 +1755,25 @@ input:focus-visible {
 }
 
 .mechanics__card {
-  --accent: var(--pink);
+  --accent: var(--accent-primary);
   padding: 14px 16px 14px;
-  background: var(--ink-panel);
-  border: 1px solid var(--line-faint);
-  border-top: 3px solid var(--accent);
-  border-radius: 10px;
+  background: var(--paper-deep);
+  border: 2px solid var(--ink);
+  border-top: 5px solid var(--accent);
+  /* Square corners: a colored top band reads as a flat ruled card, like a
+     Monopoly property card, rather than clashing with a rounded edge. */
+  border-radius: 0;
 }
 
-.mechanics__card--pink { --accent: var(--pink); }
-.mechanics__card--yellow { --accent: var(--yellow); }
-.mechanics__card--green { --accent: var(--green); }
-.mechanics__card--blue { --accent: var(--blue); }
+.mechanics__card--pink { --accent: var(--accent-primary); }
+.mechanics__card--yellow { --accent: var(--accent-highlight); }
+.mechanics__card--green { --accent: var(--accent-ethics); }
+.mechanics__card--blue { --accent: var(--accent-math); }
 
 .mechanics__heading {
   margin-bottom: 8px;
   font-size: 19px;
-  color: var(--accent);
+  color: var(--ink);
 }
 
 .mechanics ul {
@@ -1710,7 +1784,7 @@ input:focus-visible {
   gap: 5px;
   font-size: 14px;
   line-height: 1.4;
-  color: var(--text-bright);
+  color: var(--ink);
 }
 
 .mechanics li::marker {
@@ -1723,11 +1797,11 @@ input:focus-visible {
   font-size: 12px;
   font-weight: 700;
   border-radius: 999px;
-  border: 1px solid currentColor;
+  border: 1.5px solid var(--ink);
 }
 
-.mechanics__chip--clean { color: var(--green); }
-.mechanics__chip--glitchy { color: var(--ghost); }
+.mechanics__chip--clean { background: var(--accent-ethics); color: var(--ink); }
+.mechanics__chip--glitchy { background: var(--ghost); color: var(--ink); }
 
 .resume-prompt {
   position: fixed;
@@ -1737,7 +1811,7 @@ input:focus-visible {
   align-items: center;
   justify-content: center;
   padding: 24px;
-  background: rgba(22, 18, 31, 0.78);
+  background: color-mix(in srgb, var(--ink) 55%, transparent);
 }
 
 .resume-prompt__box {
@@ -1748,18 +1822,20 @@ input:focus-visible {
   gap: 10px;
   padding: 24px;
   text-align: center;
-  background: var(--ink-panel);
-  border: 1px solid var(--line-mid);
+  background: var(--paper);
+  border: 3px solid var(--ink);
   border-radius: 14px;
+  box-shadow: var(--shadow-hard);
 }
 
 .resume-prompt__title {
   font-size: 24px;
+  color: var(--ink);
 }
 
 .resume-prompt__text {
   font-size: 14px;
-  color: var(--text-muted);
+  color: var(--ink-muted);
 }
 
 .resume-prompt__actions {
@@ -1770,12 +1846,7 @@ input:focus-visible {
 
 .reveal-actions__button--primary {
   color: var(--ink);
-  background: var(--pink);
-  border-color: var(--pink);
-}
-
-.reveal-actions__button--primary:hover {
-  background: var(--pink-bright);
+  background: var(--accent-primary-cta);
 }
 
 @media (max-width: 640px) {

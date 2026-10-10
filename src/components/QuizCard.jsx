@@ -27,6 +27,10 @@ function QuizCard({ card, flipped, selectedOption, onSelectOption, resolution, i
             <span>{card.prompt}</span>
           </div>
 
+          {interactive && resolution == null && (
+            <p className="quiz-card__stakes">Answering locks in your choice — there's no changing it after.</p>
+          )}
+
           <div className={`quiz-card__options${locked ? ' quiz-card__options--locked' : ''}`}>
             {card.options.map((option, i) => {
               const isSelected = selectedOption === i
