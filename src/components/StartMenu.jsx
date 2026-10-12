@@ -17,11 +17,7 @@ const MODES = [
     id: 'hard',
     accent: 'red',
     title: 'Hard Mode',
-    description: 'You vs. one tough AI opponent.',
-    // A quieter grey badge: this mode is fully playable today, just a
-    // reduced preview of the real thing — distinct from "Coming next" above.
-    badge: 'Hard (preview)',
-    badgeVariant: 'preview',
+    description: 'You vs. an AI that can search the web for itself.',
   },
   {
     id: 'ai',

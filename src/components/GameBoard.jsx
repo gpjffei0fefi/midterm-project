@@ -22,12 +22,15 @@ import {
   TRUST_DELTA_DISPLAY_MS,
   AI_TURN_START_DELAY_MS,
   AI_THINK_MS,
+  AGENT_EVIDENCE_DISPLAY_MS,
 } from '../constants/timing'
 import { sleep } from '../utils/sleep'
 import { saveGame, clearSavedGame } from '../lib/saveGame'
 import { createDrawPile, hydrateDrawPile, drawCard } from '../lib/deckDraw'
 import { nextPlayerIndex } from '../lib/turnOrder'
 import { computeLandingFee } from '../lib/landingFee'
+import { totalTrust } from '../lib/scoring'
+import { requestOpponentMove } from '../lib/opponentApi'
 import Tile from './Tile'
 import TrustPanel from './TrustPanel'
 import ControlPanel from './ControlPanel'
@@ -61,6 +64,22 @@ function pickOptionForOutcome(card, isCorrect) {
   if (isCorrect) return card.correctIndex
   const wrong = card.options.map((_, i) => i).filter((i) => i !== card.correctIndex)
   return wrong[Math.floor(Math.random() * wrong.length)]
+}
+
+// Used only when /api/opponent itself can't be reached at all (the fetch
+// throws — offline, dev server without the function, etc). The route's own
+// handler already falls back to this same tier-based coin flip server-side
+// for every other failure (bad JSON, timeout, rate limit), so this is the
+// client-side half of "the game must never freeze."
+function localAgentFallback(card, actingPlayer) {
+  const isCorrect = rollAICorrectness(actingPlayer)
+  return {
+    answerIndex: pickOptionForOutcome(card, isCorrect),
+    reasoning: "Answered without a live search (couldn't reach the search agent this turn).",
+    queries: [],
+    sources: [],
+    usedFallback: true,
+  }
 }
 
 // players: the freshly built roster for a new game (see data/boardData.js's
@@ -181,6 +200,7 @@ function GameBoard({ players: initialPlayers, initialSave, onPlayAgain }) {
 
   function presentQuiz(card, describeResult, actingPlayer) {
     const isAI = actingPlayer.isAI
+    const usesAgent = Boolean(actingPlayer.usesAgent)
     return new Promise((resolve) => {
       quizResolverRef.current = resolve
       setActiveQuiz({
@@ -191,10 +211,17 @@ function GameBoard({ players: initialPlayers, initialSave, onPlayAgain }) {
         resultLabel: null,
         describeResult,
         isAI,
+        usesAgent,
+        agentQueries: [],
+        agentSources: [],
+        agentReasoning: null,
+        agentNote: null,
       })
       setTimeout(() => {
         setActiveQuiz((q) => (q ? { ...q, flipped: true } : q))
-        if (isAI) {
+        if (usesAgent) {
+          resolveWithAgent(card, describeResult, actingPlayer)
+        } else if (isAI) {
           setTimeout(() => {
             const isCorrect = rollAICorrectness(actingPlayer)
             finishQuiz(pickOptionForOutcome(card, isCorrect), isCorrect, describeResult)
@@ -202,6 +229,43 @@ function GameBoard({ players: initialPlayers, initialSave, onPlayAgain }) {
         }
       }, FLIP_DELAY_MS)
     })
+  }
+
+  // Hard Mode's web-searching agent path. Sends only the card id, a label,
+  // and numeric trust/lap totals — never the player's name or the card's
+  // correctIndex (the server resolves the real card itself; see
+  // api/_lib/opponentAgent.js's buildPrompt). Shows what it searched (if
+  // anything) and its one-sentence reasoning before the answer resolves, and
+  // the "couldn't search" note whenever either side had to fall back.
+  async function resolveWithAgent(card, describeResult, actingPlayer) {
+    const opponent = players.find((p) => p.id !== actingPlayer.id)
+    const gameStateSummary = {
+      lap: actingPlayer.laps ?? 0,
+      yourTrust: totalTrust(actingPlayer),
+      opponentTrust: opponent ? totalTrust(opponent) : 0,
+    }
+
+    let move
+    try {
+      move = await requestOpponentMove({ cardId: card.id, difficulty: 'hard', gameStateSummary })
+    } catch {
+      move = localAgentFallback(card, actingPlayer)
+    }
+
+    setActiveQuiz((q) =>
+      q
+        ? {
+            ...q,
+            agentQueries: move.queries ?? [],
+            agentSources: move.sources ?? [],
+            agentReasoning: move.reasoning ?? null,
+            agentNote: move.usedFallback ? "Opponent couldn't search this turn" : null,
+          }
+        : q
+    )
+    await sleep(AGENT_EVIDENCE_DISPLAY_MS)
+    const isCorrect = move.answerIndex === card.correctIndex
+    finishQuiz(move.answerIndex, isCorrect, describeResult)
   }
 
   function finishQuiz(index, isCorrect, describeResult) {

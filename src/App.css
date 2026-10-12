@@ -1038,6 +1038,52 @@ input:focus-visible {
   font-weight: 500;
 }
 
+.agent-evidence {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: center;
+}
+
+.agent-evidence__chip {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink);
+  background: var(--paper);
+  border: 2px dashed var(--ink);
+  border-radius: 8px;
+  padding: 6px 12px;
+  text-align: center;
+}
+
+.agent-evidence__sources {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: center;
+  margin-top: 4px;
+}
+
+.agent-evidence__sources a {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--ink);
+  text-decoration: underline;
+}
+
+.agent-evidence__note {
+  font-size: 12px;
+  font-style: italic;
+  color: var(--ink-muted);
+}
+
+.agent-evidence__reasoning {
+  font-size: 12px;
+  color: var(--ink-muted);
+  text-align: center;
+  max-width: 320px;
+}
+
 /* -------------------------------------------------- flying module -------------------------------------------------- */
 
 .flying-module {

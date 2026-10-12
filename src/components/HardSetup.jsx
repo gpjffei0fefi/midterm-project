@@ -23,8 +23,9 @@ function HardSetup({ name, onNameChange, onBack, onStart }) {
           />
         </label>
         <p className="intro__lead">
-          One opponent, no mercy — Hard Mode's AI is previewed with the toughest existing
-          tier until the real web-searching agent is wired in.
+          One opponent, no mercy — Hard Mode's AI can search the web for itself before
+          answering. If it ever can't reach the search agent, it falls back to a tough
+          coin-flip AI so the game keeps moving.
         </p>
         <div className="intro__actions">
           <button type="button" className="intro__button intro__button--ghost" onClick={onBack}>

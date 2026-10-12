@@ -8,3 +8,6 @@ export const FLY_DURATION_MS = 550
 export const TRUST_DELTA_DISPLAY_MS = 1100
 export const AI_TURN_START_DELAY_MS = 900
 export const AI_THINK_MS = 700
+// How long Hard Mode's "Searched: <query>" chip and reasoning stay visible
+// before the answer resolves, so the player actually gets to read them.
+export const AGENT_EVIDENCE_DISPLAY_MS = 1200

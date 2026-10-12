@@ -36,10 +36,20 @@ committed `.env.example` template.
 index.html                  Vite entry HTML; loads Google Fonts (Lora, Figtree)
 vite.config.js               Vite + React plugin config
 .oxlintrc.json                Lint rules (React hooks correctness, etc.)
-.env.example                  Template for the optional leaderboard's two env vars (copy to .env.local)
+.env.example                  Template for the optional leaderboard's two env vars, and Hard Mode's
+                               GEMINI_API_KEY (copy to .env.local)
 
 supabase/
   leaderboard.sql             One-time database setup for the leaderboard (table + security policies)
+
+api/
+  opponent.js                  POST /api/opponent — Hard Mode's serverless route (see "Hard Mode AI agent" below)
+  _lib/
+    geminiClient.js              The ONLY file that reads GEMINI_API_KEY; wraps @google/genai's Interactions API
+    opponentAgent.js             Pure, tested decision logic (prompt building, JSON validation/retry, handicap,
+                                  fallback) — `callModel` is injected so its tests never spend real quota
+    decks.js                     Server-side mirror of the quiz deck, read via `fs` (not Vite's `?raw`)
+    rateLimit.js                  In-memory per-IP request cap (a courtesy limit, not a hard guarantee)
 
 src/
   main.jsx                    React root render
@@ -58,8 +68,13 @@ src/
   data/
     boardData.js               TILES (the 16-space board loop) and INITIAL_PLAYERS
     quiz-questions.csv          The real quiz content (38 questions) — the single source of truth
+    csvDecks.js                  Bundler-agnostic CSV parsing (parseCsv/buildDecks), shared by quizCards.js
+                                  (client, via Vite `?raw`) and api/_lib/decks.js (server, via `fs`)
     quizCards.js                Parses the CSV into MATH_CARDS / ETHICS_CARDS
-    gameRules.js                 Tunable balance constants (trust bonuses/penalties, AI odds)
+    gameRules.js                 Tunable balance constants (trust bonuses/penalties, AI odds, Hard Mode's
+                                  fallback tier)
+    seatBuilders.js                Turns a mode + setup-screen choices into a seats array (buildLocalSeats,
+                                    buildAiModeSeats, buildHardModeSeats)
     creatureParts.js              Where each module mounts on the chassis + snap-in order
     moduleArt.js                   Finds the illustration for a module/state by filename (see
                                     "Visual design & assets"); also preloads/decodes images
@@ -73,6 +88,7 @@ src/
   lib/
     leaderboard.js              Leaderboard API client (Supabase REST via fetch) + the `leaderboardEnabled` flag
     saveGame.js                 localStorage save / load (validated) / clear for the in-progress game
+    opponentApi.js               Client-side fetch wrapper for POST /api/opponent (Hard Mode)
 
   components/
     StartScreen.jsx              Title + Play button
@@ -89,7 +105,9 @@ src/
                                       placeholder shape if that image doesn't exist yet)
     ModulesPanel.jsx                Per-player list of owned module chips (clean/glitchy)
     FlyingModuleChip.jsx             The "module flies from tile to panel" acquisition animation
-    LandingQuiz.jsx                  The auto-flow quiz overlay used during actual gameplay
+    LandingQuiz.jsx                  The auto-flow quiz overlay used during actual gameplay; also renders
+                                      Hard Mode's "Opponent is thinking…" / "Searched: ..." / reasoning /
+                                      fallback-note states
     QuizCard.jsx                     The flip-card itself (shared by LandingQuiz and the demo deck)
     QuizOverlay.jsx / QuizDeckSystem.jsx / DeckTray.jsx
                                        Standalone "draw a card and look at it" demo, independent
@@ -415,6 +433,110 @@ unchanged.
   removed (the anon key can't delete rows, so this was done by hand in the
   Supabase Table Editor).
 
+### Hard Mode AI agent (optional, `api/`, `lib/opponentApi.js`, `GameBoard.jsx`)
+
+> **Status: code complete, not yet verified against a real API key.**
+> `GEMINI_API_KEY` is unset in this environment as of this writing, so the one
+> required live test (3 real questions) has not been run — see "What's
+> unverified" below. Everything else (unit tests, the fallback path, the UI)
+> has been exercised.
+
+Hard Mode's AI opponent is a real agent, not a fixed-probability coin flip:
+it's handed the question and decides for itself, using a live Google Search
+tool, whether it needs to look anything up before answering. It's **optional**
+in the same sense as the leaderboard — if `GEMINI_API_KEY` is unset, or the
+call fails for any reason, Hard Mode keeps working with the original
+tier-based coin-flip AI (`AI_CORRECT_PROBABILITY_BY_TIER`, tier 1 = 70%
+correct) and a small "Opponent couldn't search this turn" note.
+
+**Model & free-tier limits, as currently documented by Google:**
+
+- **Model:** `gemini-2.5-flash` — confirmed current via
+  [ai.google.dev/gemini-api/docs/models](https://ai.google.dev/gemini-api/docs/models).
+  The newer Gemini 3.x family was deliberately **not** chosen: its own pricing
+  page contradicts itself (each model's row says Search grounding is "Not
+  available" on the free tier, while a separate tools-pricing paragraph claims
+  a free monthly grounding allowance "shared across Gemini 3 and newer") —
+  Google's docs don't resolve that contradiction, so 2.5 Flash's clean,
+  single, non-contradictory number was used instead.
+- **Grounding quota:** **up to 500 requests/day**, shared with
+  `gemini-2.5-flash-lite`, per
+  [ai.google.dev/gemini-api/docs/pricing](https://ai.google.dev/gemini-api/docs/pricing)
+  (the "Grounding with Google Search" row, free tier column).
+- **Base rate limits (RPM/TPM/RPD):** Google's
+  [rate-limits page](https://ai.google.dev/gemini-api/docs/rate-limits) no
+  longer publishes static per-model numbers — it says current limits are only
+  viewable in a logged-in Google AI Studio dashboard. No number is invented
+  here for that gap; `api/_lib/rateLimit.js`'s own 10-requests/60s-per-IP cap
+  is this project's own courtesy limit, not a quote of Google's.
+- **Search interface:** Google's current docs describe a newer **Interactions
+  API** (`client.interactions.create(...)`), not the older
+  `generateContent` + `groundingMetadata` pattern many older examples show.
+  Confirmed real (not just documentation) by inspecting the published
+  `@google/genai@2.28.0` package's own type definitions and README.
+
+**Env var:** `GEMINI_API_KEY` (see `.env.example`). Set it in `.env.local` for
+`vercel dev` locally, and as a Vercel project environment variable in
+production. **Never** prefixed `VITE_`/`NEXT_PUBLIC_` — it must stay
+server-only. It is read in exactly one place, `api/_lib/geminiClient.js`;
+nothing under `src/` imports that file, so it can never end up in the client
+bundle, and it is never logged (not even on error — only `error.message` is).
+
+**Request flow:**
+
+1. The client (`GameBoard.jsx`'s `resolveWithAgent`, via `lib/opponentApi.js`)
+   sends only `{ cardId, difficulty: 'hard', gameStateSummary }` to
+   `POST /api/opponent` — never the card's `correctIndex`, never a player
+   name. `gameStateSummary` is numbers only: `{ lap, yourTrust, opponentTrust }`.
+2. The route (`api/opponent.js`) resolves the real card itself from its own
+   server-side deck copy (`api/_lib/decks.js`, same CSV as the client, read
+   via `fs` since Vercel's function bundler doesn't understand Vite's `?raw`
+   import) — the server is the sole authority on the correct answer, never
+   the request body.
+3. `api/_lib/opponentAgent.js` builds a prompt from the card's prompt/options
+   only (never `correctIndex`), calls the model with a `google_search` tool
+   available, and lets the model decide for itself whether to use it — its
+   prompt explicitly says a self-contained math question rarely needs one.
+4. The model's reply is parsed for a trailing JSON object
+   (`{answerIndex, confidence, reasoning}`); a malformed or out-of-range reply
+   is retried once, then falls back to the tier-based coin flip.
+5. Search evidence (`searched`, `queries`, `sources`) is read from the
+   Interactions API's own step log (`google_search_call` / `url_citation`
+   annotations), not from anything the model self-reports in its JSON.
+6. **Handicap:** even a valid, correct, well-searched answer has a
+   `HARD_MODE_MISS_RATE` (15%, a named constant) chance of being flipped to a
+   wrong option, so Hard Mode stays beatable. A wrong answer is never
+   "un-missed."
+7. The whole call is wrapped in a 15-second timeout
+   (`TIMEOUT_MS` in `api/opponent.js`) and a per-IP rate limiter (10
+   requests/60s, `api/_lib/rateLimit.js` — an in-memory courtesy cap, not a
+   guarantee, since serverless instances don't share memory). **Any** failure
+   — timeout, malformed JSON twice, non-2xx, rate limit, or the client's own
+   `fetch` throwing — resolves to the exact same tier-based fallback answer,
+   so the game can never freeze waiting on a search that isn't coming.
+
+**UI** (`LandingQuiz.jsx`): during the opponent's turn it shows "Opponent is
+thinking…", then (once the model's step log shows a search happened) a
+"Searched: `<query>`" chip with clickable source links, then — once the
+answer resolves — the model's one-sentence reasoning. If either side had to
+fall back, a small "Opponent couldn't search this turn" note appears instead
+of the search chip.
+
+**Tests:** `api/_lib/opponentAgent.test.js` (39 assertions total across the
+whole suite) mocks `callModel` so no test ever spends real quota, and
+includes a dedicated "forced failure" group (a rejected promise, malformed
+JSON twice in a row, and an out-of-range index) that each confirm the
+fallback path is taken.
+
+**What's unverified:** the brief's required **one live test (3 real
+questions, real output, whether it actually searched)** has not been run,
+because `GEMINI_API_KEY` is not currently set in this environment (checked
+via `node --env-file=.env.local -e "console.log(Boolean(process.env.GEMINI_API_KEY))"`
+— printed `false` — without ever reading the file's actual contents, per
+instructions). Once a real key is set, that test can be run directly against
+`getOpponentMove` with the real `callGemini`, three different card ids, no
+loop.
+
 ### Save / resume, and Play Again (`lib/saveGame.js`, `GameBoard.jsx`, `App.jsx`)
 
 One in-progress game per browser, stored in `localStorage` under
@@ -515,3 +637,6 @@ git-ignored. Re-deploy after any change with the same command.
 - One save slot per browser; clearing site data loses it.
 - Landing fees scale with `|ethicsWeight|`, which is currently 3 for every
   module, so every fee is the same size today.
+- Hard Mode's web-searching agent has not been exercised against a real
+  `GEMINI_API_KEY` yet (unset in this environment) — see "Hard Mode AI agent"
+  above for exactly what is and isn't verified.

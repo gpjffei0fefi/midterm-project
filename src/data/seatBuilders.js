@@ -33,11 +33,13 @@ export function buildAiModeSeats(humanName, aiCount) {
   return seats
 }
 
-// Hard Mode: one human vs one AI, previewed with the existing tier-based AI
-// at its toughest setting until a real web-searching agent is wired in.
+// Hard Mode: one human vs one AI agent that can search the web for itself
+// (POST /api/opponent — see src/lib/opponentApi.js). `aiTier` stays set so
+// GameBoard has a same-shaped tier-based opponent to fall back to if the
+// agent call ever fails or times out.
 export function buildHardModeSeats(humanName) {
   return [
     { name: humanName, isAI: false, color: PLAYER_COLORS[0] },
-    { name: 'Hard AI (preview)', isAI: true, aiTier: HARD_MODE_PREVIEW_TIER, color: PLAYER_COLORS[1] },
+    { name: 'Hard AI', isAI: true, usesAgent: true, aiTier: HARD_MODE_PREVIEW_TIER, color: PLAYER_COLORS[1] },
   ]
 }
