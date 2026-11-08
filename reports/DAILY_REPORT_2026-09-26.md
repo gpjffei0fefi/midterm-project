@@ -1,5 +1,7 @@
 # Daily Report — 2026-09-26
 
+> **Note (2026-11-08):** the live URL in this report was updated to https://build-a-brain-co-ten.vercel.app. The checks below were run on the deployment of the time, at the old URL (which still shows that older game and is no longer maintained) — not on the current one.
+
 ## What was built today
 - **Real quiz content:** all 38 questions (20 Ethics, 18 Math) now come from `src/data/quiz-questions.csv`, parsed at startup into the existing card model. Bad rows are skipped with a console warning instead of crashing. The blank-placeholder state is gone. Human answers are now graded against the real `correctIndex`; AI opponents keep their tier-weighted odds but now pick a matching real option, so the card shows a coherent choice.
 - **Variable option counts:** the quiz card renders however many options a card has. Ethics cards have 2, Math cards have 4; both were checked in the browser. The card is larger (400 px) and long prompts scroll inside it.
@@ -9,7 +11,7 @@
 - **Play Again:** button on the Model Reveal; resets everything without a reload, keeps the player's name, clears the save.
 - **Font decision:** Figtree is the final body/UI font. Documentation updated to say so.
 - **Art size:** module PNGs resized to 256 px and the chassis to 512 px, same filenames. Art folder **10.9 MB → 0.9 MB**; whole production build is 1.2 MB. Checked on the live site at all sizes.
-- **Deployed** to Vercel: https://build-a-brain-co.vercel.app. Verified on the live URL: intro flow, real cards, autosave, reload → resume prompt → exact restore, a full 3-lap game to the Model Reveal, and Play Again.
+- **Deployed** to Vercel: https://build-a-brain-co-ten.vercel.app. Verified on the live URL: intro flow, real cards, autosave, reload → resume prompt → exact restore, a full 3-lap game to the Model Reveal, and Play Again.
 - Full `DOCUMENTATION.md` pass; all screenshots retaken from the deployed site.
 
 ## Bugs encountered
@@ -29,7 +31,7 @@
 ## Known limitations
 - The three test leaderboard rows from the real-backend checks were removed by hand in Supabase (the anon key cannot delete rows). Final check on the live site: the leaderboard is empty ("No scores yet").
 - Not phone-optimised (board needs ~620 px width).
-- Hosted on Vercel under the `sikhay1` Vercel team (display name "Sikhay"), at https://build-a-brain-co.vercel.app.
+- Hosted at the time on Vercel under the `sikhay1` Vercel team (display name "Sikhay"). As of 2026-11-08 the game lives in the owner's personal Vercel scope at https://build-a-brain-co-ten.vercel.app (see the note above).
 - Stray 6-byte file `C:\HENRYG~1\placeholder.txt` from an earlier mistake is still there (the environment blocks deleting it); harmless and outside the repo.
 
 ## Next session

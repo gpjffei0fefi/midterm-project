@@ -1,5 +1,7 @@
 # Daily Report — 2026-09-27
 
+> **Note (2026-11-08):** the live URL in this report was updated to https://build-a-brain-co-ten.vercel.app. The checks below were run on the deployment of the time, at the old URL (which still shows that older game and is no longer maintained) — not on the current one.
+
 ## What was fixed today
 
 **1. Quiz cards repeating within/across rounds.** Every draw — module
@@ -57,7 +59,7 @@ was touched today.
 
 ## Live URL status
 
-https://build-a-brain-co.vercel.app — redeployed after both fixes and
+https://build-a-brain-co-ten.vercel.app — redeployed after both fixes and
 confirmed:
 - A real playthrough drew 7 different cards across both decks with zero
   repeats (`math-02, math-10, math-15, math-17, math-06, ethics-11,

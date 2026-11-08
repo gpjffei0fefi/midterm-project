@@ -1,11 +1,17 @@
 # Build-A-Brain Co. — Technical Documentation
 
-A browser-only React board game about assembling an AI system one module at a
-time, while an ethics/accuracy "Trust Score" tracks how responsibly you built
-it. No backend and no database: the game runs entirely in the browser, and an
-in-progress game is kept in that browser's `localStorage` so it can be resumed.
+A React board game about assembling an AI system one module at a time, while
+an ethics/accuracy "Trust Score" tracks how responsibly you built it. All
+gameplay runs in the browser; an in-progress game is kept in that browser's
+`localStorage` so it can be resumed. The only outside services are an
+optional Supabase leaderboard and one Vercel serverless route
+(`/api/opponent`) for Hard Mode's web-searching agent, which is **built but
+disabled** in the shipped build (see "Hard Mode AI agent").
 
-**Live site:** https://build-a-brain-co.vercel.app (static build hosted on Vercel under the `sikhay1` Vercel team (display name "Sikhay")).
+**Live site:** https://build-a-brain-co-ten.vercel.app — a Vite build on
+Vercel, in the project owner's **personal** Vercel scope (project
+`build-a-brain-co`). See "Deployment" for how it got there and how to
+redeploy.
 
 This file describes the **current** state of the codebase. It is rewritten
 each time it's regenerated, not appended to — see `reports/` for a
@@ -22,10 +28,12 @@ npm run build    # production build to dist/
 npm run lint     # oxlint
 ```
 
-The game runs with no configuration. The only external service is the
-**optional** shared leaderboard — if its two environment variables are unset,
-the leaderboard UI simply doesn't appear. **The deployed build has the
-leaderboard on**, wired to a real Supabase project. To set one up, see
+The game runs with no configuration. The only external service the shipped
+build uses is the **optional** shared leaderboard — if its two environment
+variables (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`) are unset, the
+leaderboard UI simply doesn't appear. **The deployed build has the
+leaderboard on**, wired to a real Supabase project. `GEMINI_API_KEY` is only
+needed if the Hard Mode agent is ever re-enabled. To set one up, see
 ["Leaderboard (optional)"](#leaderboard-optional) below. `.gitignore`
 excludes `node_modules`, `dist`/`dist-ssr`, and every `.env*` file except the
 committed `.env.example` template.
@@ -43,19 +51,22 @@ supabase/
   leaderboard.sql             One-time database setup for the leaderboard (table + security policies)
 
 api/
-  opponent.js                  POST /api/opponent — Hard Mode's serverless route (see "Hard Mode AI agent" below)
+  opponent.js                  POST /api/opponent — Hard Mode's serverless route (see "Hard Mode AI agent" below;
+                                 deployed, but the shipped client never calls it)
+  opponent.test.js             Route-level forced-failure test (Gemini mocked)
   _lib/
     geminiClient.js              The ONLY file that reads GEMINI_API_KEY; wraps @google/genai's Interactions API
     opponentAgent.js             Pure, tested decision logic (prompt building, JSON validation/retry, handicap,
                                   fallback) — `callModel` is injected so its tests never spend real quota
     decks.js                     Server-side mirror of the quiz deck, read via `fs` (not Vite's `?raw`)
     rateLimit.js                  In-memory per-IP request cap (a courtesy limit, not a hard guarantee)
+    opponentAgent.test.js         Agent unit tests (mocked model: fallback, retries, handicap, logging)
 
 src/
   main.jsx                    React root render
-  App.jsx                     Screen flow (start -> mechanics -> name -> game), the resume prompt,
-                               Start New / Play Again, and the standalone "View leaderboard" button
-                               when the leaderboard is enabled
+  App.jsx                     Screen flow (start -> mechanics -> mode menu -> setup -> game), the resume
+                               prompt, Start New / Play Again, and the standalone "View leaderboard"
+                               button when the leaderboard is enabled
   index.css                   Design tokens (palette, fonts) as CSS custom properties, global reset
   App.css                     All component styles (single stylesheet, sections marked off with
                                comment banners: board, tiles, module art, tokens, control panel,
@@ -66,7 +77,7 @@ src/
     creature/                  chassis-base.png (512 px), the robot body the modules mount onto
 
   data/
-    boardData.js               TILES (the 16-space board loop) and INITIAL_PLAYERS
+    boardData.js               TILES (the 16-space board loop), PLAYER_COLORS, buildPlayers (seats -> players)
     quiz-questions.csv          The real quiz content (38 questions) — the single source of truth
     csvDecks.js                  Bundler-agnostic CSV parsing (parseCsv/buildDecks), shared by quizCards.js
                                   (client, via Vite `?raw`) and api/_lib/decks.js (server, via `fs`)
@@ -75,6 +86,7 @@ src/
                                   fallback tier, HARD_MODE_AGENT_ENABLED)
     seatBuilders.js                Turns a mode + setup-screen choices into a seats array (buildLocalSeats,
                                     buildAiModeSeats, buildHardModeSeats)
+    seatBuilders.test.js           Hard seat with the agent flag off/on; AI Mode never uses the agent
     creatureParts.js              Where each module mounts on the chassis + snap-in order
     moduleArt.js                   Finds the illustration for a module/state by filename (see
                                     "Visual design & assets"); also preloads/decodes images
@@ -88,15 +100,28 @@ src/
   lib/
     leaderboard.js              Leaderboard API client (Supabase REST via fetch) + the `leaderboardEnabled` flag
     saveGame.js                 localStorage save / load (validated) / clear for the in-progress game
-    opponentApi.js               Client-side fetch wrapper for POST /api/opponent (Hard Mode)
+    opponentApi.js               Client-side fetch wrapper for POST /api/opponent (Hard Mode; unused while
+                                  the agent is disabled)
+    deckDraw.js                  Shuffled, no-repeat draw pile per deck (+ deckDraw.test.js)
+    landingFee.js                Landing-fee size and axis as a pure function (+ landingFee.test.js)
+    scoring.js                   Trust Score total and the tie-aware winner set (+ scoring.test.js)
+    turnOrder.js                 Next-seat logic for 2-4 players (+ turnOrder.test.js)
 
   components/
     StartScreen.jsx              Title + Play button
     MechanicsScreen.jsx           One-screen "How to play" explainer, then Continue
-    NameEntry.jsx                 Player name (defaults to "Player 1")
+    StartMenu.jsx                 "Choose how to play": Local / Online (Coming next) / Hard (preview) / AI
+    PlayerCountScreen.jsx          "How many players?" (2-4), shared by Local, AI and Online
+    LocalSetup.jsx                 Names + token colors for every Local seat
+    TokenPicker.jsx                One seat's token-color swatches (colors taken by others are disabled)
+    AiSetup.jsx                    Your name, plus which AI tiers you'll face
+    HardSetup.jsx                  Your name for Hard (preview); copy depends on HARD_MODE_AGENT_ENABLED
+    OnlineSetup.jsx                Placeholder room screen: every control disabled, "Coming next" notice
+    NameEntry.jsx                 Older single-name screen; no longer imported by App.jsx
     ResumePrompt.jsx              "Resume your game?" — Resume / Start New
     GameBoard.jsx                The orchestrator: owns all game state and turn/quiz/trust logic
     Tile.jsx                     One board space (module art, tokens, ownership ring, glitch state)
+    BoardLegend.jsx               Always-visible key: technical / responsible / neutral / glitchy
     PlayerToken.jsx               A player's colored marker on the board, with hop animation
     ControlPanel.jsx               Dice + Roll button + whose-turn indicator
     Dice.jsx                       The digital die readout
@@ -105,9 +130,9 @@ src/
                                       placeholder shape if that image doesn't exist yet)
     ModulesPanel.jsx                Per-player list of owned module chips (clean/glitchy)
     FlyingModuleChip.jsx             The "module flies from tile to panel" acquisition animation
-    LandingQuiz.jsx                  The auto-flow quiz overlay used during actual gameplay; also renders
-                                      Hard Mode's "Opponent is thinking…" / "Searched: ..." / reasoning /
-                                      fallback-note states
+    LandingQuiz.jsx                  The auto-flow quiz overlay used during actual gameplay; also has
+                                      the Hard Mode agent's "Searched: ..." / reasoning / fallback-note
+                                      states, which never render while the agent is disabled
     QuizCard.jsx                     The flip-card itself (shared by LandingQuiz and the demo deck)
     QuizOverlay.jsx / QuizDeckSystem.jsx / DeckTray.jsx
                                        Standalone "draw a card and look at it" demo, independent
@@ -118,7 +143,8 @@ src/
     SubmitScore.jsx                    Name field + submit button shown under the finished reveal
     LeaderboardScreen.jsx               Full-screen top-20 list; re-fetches every time it opens
 
-screenshots/                    UI screenshots taken from the deployed site (overwritten on each doc regeneration)
+screenshots/                    Top-level *.png: the pre-restyle (dark) UI, kept for history.
+                                 restyle/, start-menu/: the current look. live/: taken on the current live URL.
 reports/                        One dated markdown file per work session (append-only log)
 ```
 
@@ -126,9 +152,18 @@ reports/                        One dated markdown file per work session (append
 
 ### Screen flow (`App.jsx`)
 
-`start` (title + **Play**) → `mechanics` (How to play → **Continue**) → `name`
-(name entry → **Start game**) → `game`. If a valid save exists when the page
-loads, a small "Resume your game?" prompt appears over the start screen:
+`start` (title + **Play**) → `mechanics` (How to play → **Continue**) →
+`modeSelect` (the **Choose how to play** menu) → a mode-specific setup →
+`game`:
+
+| Mode | Setup screens | Seats |
+|---|---|---|
+| **Local Multiplayer** | player count (2-4) → names + token colors | all human, pass-and-play |
+| **AI Mode** | total player count (2-4) → your name | you + 1-3 AIs, tiers 1/2/3 in that order |
+| **Hard Mode — "Hard (preview)"** | your name | you + one tier-1 AI named "Hard (preview)" (agent disabled) |
+| **Online Multiplayer — "Coming next"** | player count → a room screen | **not built**: every control is disabled, so it never reaches a game |
+
+If a valid save exists when the page loads, a small "Resume your game?" prompt appears over the start screen:
 **Resume** jumps straight into the game with the saved state, **Start New**
 clears the save and shows the normal start screen. `GameBoard` is remounted
 (via a changing `key`) for every new game, which is what resets all of its
@@ -203,7 +238,7 @@ next reshuffle. Fixed a bug where every draw (module and neutral alike) was a
 plain `Math.random()` pick with replacement, so the same card could come up
 repeatedly, including twice in a row. Verified with 2.5 full cycles through
 each real deck (Math: 18 cards, Ethics: 20), mixing tiered and untiered
-draws — zero duplicates within any cycle — and confirmed on the deployed site
+draws — zero duplicates within any cycle — and confirmed on the deployment of the time (the old URL)
 across a real playthrough. The draw piles are persisted in the save file
 (`saveGame.js`), so a resumed game continues the exact same draw order
 instead of reshuffling.
@@ -235,7 +270,7 @@ live in `TrustPanel.jsx` (and again in `ModelReveal.jsx` at game end):
   and a responsible module was debiting Accuracy and crediting the owner's
   trust axis. Verified directly (forcing a single-step move onto an
   opponent's Bias Audit and, separately, Data Pipeline) on both localhost
-  and the deployed site: the Bias Audit fee now moves Fairness only, and the
+  and the deployment of the time (the old URL): the Bias Audit fee now moves Fairness only, and the
   Data Pipeline fee now moves Accuracy only, on both sides.
 
 Every axis is clamped at a floor of 0 (`applyAxisChange`). A debit that lands
@@ -258,8 +293,9 @@ All the point values (bonuses, penalties, the fee multiplier) live in
 
 ### AI opponent logic (`GameBoard.jsx`, `data/gameRules.js`)
 
-Players 2 and 3 are marked `isAI: true` in `INITIAL_PLAYERS`; Player 1 is
-human. For an AI player:
+AI seats come from `seatBuilders.js` (AI Mode: 1-3 AIs at tiers 1, 2, 3 in
+order; Hard (preview): one tier-1 AI) and become players with `isAI: true`
+and a fixed `aiTier` via `buildPlayers`. For an AI player:
 
 - A `useEffect` keyed on `currentPlayerIndex` waits
   `AI_TURN_START_DELAY_MS`, then calls the exact same `handleRoll()` the
@@ -317,15 +353,20 @@ remounts a fresh game (same player name) without a page reload.
 
 ### Visual design & assets (`index.css`, `App.css`, `data/moduleArt.js`)
 
-**Palette.** `#16121f` is the dominant dark base (page, panels, and overlays are
-that color or slightly lifted tints of it), with four pastel accents that each
-carry a meaning: **green `#b4ff9f`** = ethics / responsible / clean / correct,
-**blue `#9be7ff`** = math / technical / accuracy, **yellow `#fff3b0`** =
-neutral spaces, transparency, highlights and the winner, **pink `#ff9ecb`** =
-the primary accent (Roll button, active turn) and penalties. Players are blue
-(you), pink, and yellow. A **glitchy** module drains to a flat grey: grey
-ring, grey label, dashed grey chip, and a desaturated version of its art.
-Everything is defined as tokens at the top of `index.css`.
+**Palette (the `restyle` redesign).** A light, Monopoly-derived board-game
+palette, kept deliberately original (no Hasbro trade dress): flat fills, bold
+uniform **ink** outlines (`--ink: #16121f`, also all text), and one hard
+offset shadow for depth — no gradients. The table is a mint **felt**
+(`--felt: #cde6d0`), with boards, tiles, cards and panels on lighter
+**paper** tints of it. Set colors are used for tile bands and small accents
+only: **green `#1fb25a`** = ethics / responsible, **blue `#01aeee`** = math /
+technical / accuracy, **yellow `#fef200`** = neutral spaces and highlights,
+**magenta `#d93a96`** = the primary accent (Roll button, active turn),
+**red `#ed1b24`** = penalties. Player tokens are blue, magenta, yellow and
+green (`PLAYER_COLORS`). A **glitchy** module drains to a flat grey
+(`--ghost: #9a9488`). Every token is defined at the top of `index.css`. The
+old dark navy/pastel palette is gone; the top-level `screenshots/*.png`
+still show it.
 
 **Typography.** Two families only, both upright (no italic faces are
 loaded). **Lora** (serif, weights 500/600/700) is for titles and "moments":
@@ -372,8 +413,11 @@ the repo; re-export from the source art if you ever need a larger size.
 
 > **Status: live in the deployed build.** The site is wired to a real Supabase
 > project (`VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` are set as Production
-> environment variables on Vercel, and `supabase/leaderboard.sql` has been run).
-> A real submit and fetch were tested both locally and on the live site.
+> environment variables on the new Vercel project, and `supabase/leaderboard.sql`
+> has been run). On 2026-11-08, on https://build-a-brain-co-ten.vercel.app, the
+> leaderboard loaded (Supabase answered 200) and a real submit succeeded: a test
+> row named `deploy-check` (score 41) was added, which the project owner is
+> removing by hand in the Supabase dashboard.
 > When setting these variables, make sure the values contain no leading BOM or
 > trailing newline: a BOM (which PowerShell's pipe adds) makes the browser reject
 > the request headers, so submits fail with "Couldn't submit your score". Use
@@ -480,13 +524,12 @@ URLs now 301-redirect to these):
   RPM/TPM/RPD numbers are published for `gemini-3.8-flash`; the page says
   current limits are only viewable in Google AI Studio.
 
-Hard Mode's AI opponent is a real agent, not a fixed-probability coin flip:
-it's handed the question and decides for itself, using a live Google Search
-tool, whether it needs to look anything up before answering. It's **optional**
-in the same sense as the leaderboard — if `GEMINI_API_KEY` is unset, or the
-call fails for any reason, Hard Mode keeps working with the original
-tier-based coin-flip AI (`AI_CORRECT_PROBABILITY_BY_TIER`, tier 1 = 70%
-correct) and a small "Opponent couldn't search this turn" note.
+**How the agent works when enabled** (it is not, in the shipped build): the
+opponent is handed the question and decides for itself, using a Google
+Search tool, whether it needs to look anything up before answering. If
+`GEMINI_API_KEY` is unset, or the call fails for any reason, it falls back
+to the tier-based coin-flip AI (`AI_CORRECT_PROBABILITY_BY_TIER`, tier 1 =
+70% correct) and a small "Opponent couldn't search this turn" note.
 
 **Model & free-tier limits, as originally chosen (before the deprecation above):**
 
@@ -633,8 +676,8 @@ passed back to Player 1. The game did not stall.
 One in-progress game per browser, stored in `localStorage` under
 `build-a-brain:save` (no account or login).
 
-- **What is saved:** the three players (name, colour, position, laps, and
-  accuracy / fairness / transparency), the current player index, the turn
+- **What is saved:** every player, 2-4 of them (name, colour, position,
+  laps, AI flag and tier, and accuracy / fairness / transparency), the current player index, the turn
   count, the last dice value, and every module's owner and clean/glitchy
   state.
 - **When:** automatically after every resolved turn (move, card answer,
@@ -651,7 +694,7 @@ One in-progress game per browser, stored in `localStorage` under
   a `game--settling` class that turns off all transitions and animations, so
   tokens, bars and module chips appear in place instead of animating in.
 - **Clearing:** the save is deleted when the game reaches the Model Reveal,
-  when you choose **Start New**, when a new game is started from the name
+  when you choose **Start New**, when a new game is started from a setup
   screen, and on **Play Again**, so a stale resume prompt can't appear.
 
 ### Git workflow
@@ -661,63 +704,83 @@ project's working agreement: saying **"save progress"** or **"commit
 this"** means stage everything and commit with a short descriptive
 message — no confirmation needed for that specific action. Force-pushes,
 history rewrites, and pushes to remote still require an explicit ask.
-`.gitignore` covers `node_modules`, `dist`/`dist-ssr`, and `.env*` files.
+`.gitignore` covers `node_modules`, `dist`/`dist-ssr`, `.vercel` and
+`.vercel_old` (the old project link, kept locally), and every `.env*` file
+except `.env.example`.
 
 ## Current UI
 
-All screenshots were taken from the deployed site
-(https://build-a-brain-co.vercel.app), not localhost.
+Screenshots of the current look (the `restyle` palette and the start menu)
+were taken locally during that work; the one in `live/` was taken on the
+live URL (https://build-a-brain-co-ten.vercel.app) on 2026-11-08. Only 1 of 6
+planned live screenshots was captured that night — the browser's screenshot
+call kept timing out.
 
-![Start screen](screenshots/start-screen.png)
-*The title screen with the Play button.*
+![Start menu](screenshots/start-menu/start-menu.jpg)
+*"Choose how to play": Local Multiplayer, Online Multiplayer ("Coming next"),
+Hard Mode ("Hard (preview)"), and AI Mode.*
 
-![Mechanics](screenshots/mechanics.png)
-*The one-screen "How to play" explainer shown after Play.*
+![Online placeholder](screenshots/start-menu/online-coming-next.jpg)
+*The Online room screen: every control disabled, with the "Coming next"
+notice.*
 
-![Resume prompt](screenshots/resume-prompt.png)
-*The "Resume your game?" prompt shown on load when a saved game exists.*
+![Board](screenshots/restyle/board.jpg)
+*The board: 16-tile loop with illustrated modules, dice/turn control, lap
+counter and the live Trust Score readouts.*
 
-![Board](screenshots/board.png)
-*The board at the start of a game: 16-tile loop, illustrated modules, live
-dice/turn control, lap counter and the Trust Score panel.*
+![Quiz card](screenshots/restyle/quiz-card.jpg)
+*A real Ethics card (`ethics-06`, two options) flipped face-up on a landing.*
 
-![Card draw in progress](screenshots/card-draw.png)
-*A real quiz card (`ethics-01`, two options) flipped face-up during a landing,
-part of a sequence of unique draws with no repeats on the deployed site.*
+![Model Reveal](screenshots/restyle/model-reveal.jpg)
+*The end-of-game reveal: each player's creature built from their modules,
+the winner highlighted.*
 
-![Landing fee on a responsible module](screenshots/landing-fee-responsible.png)
-*Landing on an opponent's Bias Audit: the fee moved Fairness on both sides
-(visitor −6, owner +6), verified by reading the exact axis values before and
-after on the deployed site.*
+![Model Reveal, 4 players](screenshots/start-menu/end-screen-4-players.jpg)
+*The reveal with four players, and the leaderboard submit prompt below it.*
 
-![Landing fee on an irresponsible module](screenshots/landing-fee-irresponsible.png)
-*Landing on an opponent's Data Pipeline: the fee moved Accuracy on both sides
-(visitor −6, owner +6) instead — the corrected, opposite axis from the
-responsible-module case above.*
+![Live leaderboard](screenshots/live/leaderboard-after-submit.jpg)
+*The leaderboard on the live URL right after the `deploy-check` test submit
+(row 5, marked "You").*
 
-![Trust Score breakdown](screenshots/trust-breakdown.png)
-*The live per-player Accuracy / Fairness / Transparency bars.*
-
-![Module states](screenshots/module-states.png)
-*A resumed late-game board: owned modules with owner-colored rings, glitchy
-modules greyed with dashed chips, and one still-open module.*
-
-![Model Reveal](screenshots/model-reveal.png)
-*The end-of-game reveal after a 3-lap game: each player's creature assembled
-from their owned modules, the winner highlighted, and the Play Again button.
-The game was fast-forwarded from a resumed late-game save to reach it.*
-
-![Leaderboard](screenshots/leaderboard.png)
-*The live top-20 leaderboard on the deployed site, fetched from the real
-Supabase project. It is empty until the first real game is submitted.*
+**Older, pre-restyle screenshots** (dark palette, kept for history; the
+mechanics they show are unchanged): `screenshots/start-screen.png`,
+`mechanics.png`, `resume-prompt.png`, `board.png`, `card-draw.png`,
+`landing-fee-responsible.png` (Bias Audit fee moves Fairness on both sides),
+`landing-fee-irresponsible.png` (Data Pipeline fee moves Accuracy),
+`trust-breakdown.png`, `module-states.png`, `model-reveal.png`,
+`leaderboard.png`.
 
 ## Deployment
 
-The site is a static Vite build (`npm run build` produces `dist/`), deployed to
-Vercel with `vercel deploy --prod`, under the `sikhay1` Vercel team (display name
-"Sikhay"); Vercel auto-detects the framework, so no
-config file is needed. A `.vercel/` folder holds the local project link and is
-git-ignored. Re-deploy after any change with the same command.
+**Live URL:** https://build-a-brain-co-ten.vercel.app (production alias).
+Share only this URL: each deployment's own unique `*.vercel.app` URL sits
+behind a Vercel login wall.
+
+- **Where it lives:** Vercel project `build-a-brain-co` in the project
+  owner's **personal** Vercel scope. On 2026-11-08 the project moved there
+  from the `sikhay1` Vercel team, which this login can no longer access.
+- **The old URL, https://build-a-brain-co.vercel.app, still shows the OLD
+  game** (pre-restyle, no start menu) and is not maintained. It was left
+  alone, not taken over.
+- **Pushing to GitHub does NOT deploy.** Connecting the GitHub repo to the
+  Vercel project failed ("You need to add a Login Connection to your GitHub
+  account first"), so there are no automatic deploys. Redeploy by hand from
+  the repo root:
+
+  ```bash
+  vercel deploy --prod
+  ```
+
+- **Environment variables (Production):** `VITE_SUPABASE_URL` and
+  `VITE_SUPABASE_ANON_KEY`. Vite bakes `VITE_` values in at build time, so
+  they must be set **before** a deploy, and changing one needs a redeploy.
+  Add them from Git Bash with `vercel env add <NAME> production` (not
+  PowerShell, which once added an invisible character to a value).
+  `GEMINI_API_KEY` is **not** set and isn't needed while the Hard Mode agent
+  is disabled.
+- Vercel auto-detects Vite (`vite build`, output `dist/`); no config file.
+  The local `.vercel/` link folder is git-ignored; the old team's link was
+  renamed to `.vercel_old/` (also ignored), not deleted.
 
 ## Known limitations
 
@@ -731,3 +794,7 @@ git-ignored. Re-deploy after any change with the same command.
 - Hard Mode ships as "Hard (preview)": the web-searching agent is built and
   unit-tested but disabled (`HARD_MODE_AGENT_ENABLED = false`), and has
   never answered a question live — see "Hard Mode AI agent" above.
+- Online Multiplayer is **not built**: the menu shows it as "Coming next"
+  and its room screen has every control disabled.
+- No automatic deploys: GitHub isn't connected to the Vercel project (see
+  "Deployment").
