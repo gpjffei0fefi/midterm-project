@@ -34,3 +34,7 @@ dist-ssr
 .impeccable/hook.cache.json
 
 .vercel
+.vercel_old
+
+.env*
+!.env.example
