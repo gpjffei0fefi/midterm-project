@@ -54,6 +54,7 @@ export function buildPlayers(seats) {
     ...STARTING_TRUST,
     isAI: Boolean(seat.isAI),
     aiTier: seat.isAI ? seat.aiTier : null,
+    usesAgent: Boolean(seat.usesAgent),
     laps: 0,
   }))
 }

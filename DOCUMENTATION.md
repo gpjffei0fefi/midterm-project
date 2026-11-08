@@ -435,11 +435,13 @@ unchanged.
 
 ### Hard Mode AI agent (optional, `api/`, `lib/opponentApi.js`, `GameBoard.jsx`)
 
-> **Status: code complete, not yet verified against a real API key.**
-> `GEMINI_API_KEY` is unset in this environment as of this writing, so the one
-> required live test (3 real questions) has not been run — see "What's
-> unverified" below. Everything else (unit tests, the fallback path, the UI)
-> has been exercised.
+> **Status: live test FAILED on 2026-11-08 — Google rejects the model.**
+> With a real `GEMINI_API_KEY`, the very first live call returned
+> `404 … models/gemini-2.5-flash is no longer available to new users`. No
+> Hard Mode turn can currently get a real searched answer; every turn uses the
+> tier-based fallback. The fallback itself is verified end-to-end (see "Live
+> test result" below). The model has **not** been changed — that's an open
+> decision, not a fix that was made.
 
 Hard Mode's AI opponent is a real agent, not a fixed-probability coin flip:
 it's handed the question and decides for itself, using a live Google Search
@@ -522,20 +524,62 @@ answer resolves — the model's one-sentence reasoning. If either side had to
 fall back, a small "Opponent couldn't search this turn" note appears instead
 of the search chip.
 
-**Tests:** `api/_lib/opponentAgent.test.js` (39 assertions total across the
-whole suite) mocks `callModel` so no test ever spends real quota, and
-includes a dedicated "forced failure" group (a rejected promise, malformed
-JSON twice in a row, and an out-of-range index) that each confirm the
-fallback path is taken.
+**Tests** (42 across the whole suite, none spend real quota):
 
-**What's unverified:** the brief's required **one live test (3 real
-questions, real output, whether it actually searched)** has not been run,
-because `GEMINI_API_KEY` is not currently set in this environment (checked
-via `node --env-file=.env.local -e "console.log(Boolean(process.env.GEMINI_API_KEY))"`
-— printed `false` — without ever reading the file's actual contents, per
-instructions). Once a real key is set, that test can be run directly against
-`getOpponentMove` with the real `callGemini`, three different card ids, no
-loop.
+- `api/_lib/opponentAgent.test.js` mocks `callModel` and includes a dedicated
+  "forced failure" group (a rejected promise, malformed JSON twice in a row,
+  and an out-of-range index) that each confirm the fallback path is taken.
+- `api/opponent.test.js` runs the real route handler with only `callGemini`
+  mocked, rejecting with the exact 404 from the live test below, and asserts
+  a 200 with a valid, `usedFallback: true` move.
+- `src/data/seatBuilders.test.js` guards the Hard AI seat's `usesAgent` flag
+  (see the bug below).
+
+**Live test result (2026-11-08).** Run against `getOpponentMove` with the
+real `callGemini` and the route's 15s timeout, `GEMINI_API_KEY` set in
+`.env.local` (confirmed via the `node --env-file` boolean check, file never
+read). Planned cards: `math-01` (math), `ethics-15` (ethics), `ethics-05`
+(DepEd's AI literacy rollout — a real, current policy, the search
+candidate). The harness allowed at most one network call per card and
+stopped on the first error.
+
+| Card | Result |
+|---|---|
+| `math-01` | **Failed.** `NotFoundError`, status `404`: `This model models/gemini-2.5-flash is no longer available to new users. Please update your code to use models/gemini-3.8-flash for the latest features and improvements.` (330 ms) |
+| `ethics-15` | Not sent — stopped after the first failure. |
+| `ethics-05` | Not sent — stopped after the first failure. |
+
+Total real network calls: **1**. So there is no `answerIndex`, search flag,
+query, source, or reasoning from a real model to report. The model was
+deliberately **not** switched — the 404 suggests `gemini-3.8-flash`, but
+the model choice above was made on grounding-quota grounds, so changing it
+needs a fresh decision, and a new live test after.
+
+**Bug found and fixed during this test:** `buildPlayers`
+(`data/boardData.js`) copied each seat's `isAI`/`aiTier` but dropped
+`usesAgent`, so in a real game the Hard AI **never called `/api/opponent`**
+— it silently played as the plain coin-flip AI. The unit tests above only
+exercised the server side, so nothing caught it. Fixed (one line) with a
+regression test.
+
+**Fallback verified in the real game.** The app was served by Vite with the
+real `api/opponent.js` handler mounted as middleware and `GEMINI_API_KEY`
+removed from that process (so `callGemini` throws before any network call).
+In a real Hard Mode game in Chrome, the Hard AI drew `ethics-19`; the client
+sent `{"cardId":"ethics-19","difficulty":"hard","gameStateSummary":{"lap":0,"yourTrust":75,"opponentTrust":69}}`,
+the route answered `200` with `usedFallback: true, answerIndex: 1`, the
+overlay showed "Opponent is thinking…" then "Opponent couldn't search this
+turn", the answer resolved (Hard AI acquired BA-1, trust 95), and the turn
+passed back to Player 1. The game did not stall.
+
+**Known gaps surfaced by the test:**
+
+- A model-level failure is invisible in server logs. `getOpponentMove`
+  catches every model error itself and returns the fallback, so
+  `api/opponent.js`'s `console.error` never fires — the 404 above would
+  never show up in Vercel's logs; it only looks like "the AI never searches."
+- A permanent error (like this 404) is still retried once, so each Hard AI
+  turn spends two failing calls before falling back.
 
 ### Save / resume, and Play Again (`lib/saveGame.js`, `GameBoard.jsx`, `App.jsx`)
 
