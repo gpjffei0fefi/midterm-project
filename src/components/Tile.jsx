@@ -1,5 +1,7 @@
 import PlayerToken from './PlayerToken'
 import ModuleIcon from './ModuleIcon'
+import AssetImage from './AssetImage'
+import { flagOwned } from '../assets/assetMap'
 
 const TOKEN_OFFSETS = [
   { x: -14, y: -10 },
@@ -33,7 +35,9 @@ function Tile({ tile, occupants, isLanding, innerRef, moduleInfo, ownerColor }) 
       )}
       <span className="tile__code">{tile.code}</span>
       <span className="tile__label">{tile.label}</span>
-      {owned && <span className="tile__owner-mark" />}
+      {owned && (
+        <AssetImage src={flagOwned} className="tile__owner-flag" fallback={<span className="tile__owner-mark" />} />
+      )}
       {occupants.length > 0 && (
         <div className="tile__tokens">
           {occupants.map((player, i) => (

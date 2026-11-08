@@ -1,3 +1,6 @@
+import AssetImage from './AssetImage'
+import { iconTrust } from '../assets/assetMap'
+
 const AXES = [
   { key: 'accuracy', label: 'ACC' },
   { key: 'fairness', label: 'FAIR' },
@@ -27,7 +30,10 @@ function TrustPanel({ players, activePlayerId, trustDeltas }) {
                   {player.isAI && <span className="ai-tag">AI</span>}
                 </span>
                 <div className="trust-row__value-wrap">
-                  <span className="trust-row__value">{total}</span>
+                  <span className="trust-row__value">
+                    <AssetImage src={iconTrust} className="trust-row__icon" />
+                    {total}
+                  </span>
                   {delta &&
                     (() => {
                       // A debit that landed on an axis already at 0 has
