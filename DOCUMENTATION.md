@@ -75,6 +75,9 @@ src/
   assets/
     modules/                   Module illustrations (256 px): <module-slug>-clean.png / -glitchy.png
     creature/                  chassis-base.png (512 px), the robot body the modules mount onto
+    tokens/ ui/ dice/          Player tokens, UI icons/badges/flag, die art — original filenames,
+                                resized (see "UI art and the asset map")
+    assetMap.js                THE ONLY file that names those files; exports them by role
 
   data/
     boardData.js               TILES (the 16-space board loop), PLAYER_COLORS, buildPlayers (seats -> players)
@@ -120,12 +123,13 @@ src/
     NameEntry.jsx                 Older single-name screen; no longer imported by App.jsx
     ResumePrompt.jsx              "Resume your game?" — Resume / Start New
     GameBoard.jsx                The orchestrator: owns all game state and turn/quiz/trust logic
-    Tile.jsx                     One board space (module art, tokens, ownership ring, glitch state)
+    Tile.jsx                     One board space (module art, tokens, ownership ring + flag, glitch state)
     BoardLegend.jsx               Always-visible key: technical / responsible / neutral / glitchy
-    PlayerToken.jsx               A player's colored marker on the board, with hop animation
+    PlayerToken.jsx               A player's colored marker on the board with its token art, hop animation
+    AssetImage.jsx                An <img> that falls back to the old code-drawn version if it fails to load
     ControlPanel.jsx               Dice + Roll button + whose-turn indicator
-    Dice.jsx                       The digital die readout
-    TrustPanel.jsx                 Live per-player Trust Score + 3-axis bar breakdown
+    Dice.jsx                       Die-face art with pips drawn in code (falls back to a "D6 / number" readout)
+    TrustPanel.jsx                 Live per-player Trust Score (with the trust icon) + 3-axis bar breakdown
     ModuleIcon.jsx                   A module's illustration in its current state (or the CSS
                                       placeholder shape if that image doesn't exist yet)
     ModulesPanel.jsx                Per-player list of owned module chips (clean/glitchy)
@@ -144,7 +148,9 @@ src/
     LeaderboardScreen.jsx               Full-screen top-20 list; re-fetches every time it opens
 
 screenshots/                    Top-level *.png: the pre-restyle (dark) UI, kept for history.
-                                 restyle/, start-menu/: the current look. live/: taken on the current live URL.
+                                 restyle/, start-menu/: the restyle and menu. assets/: the new UI art,
+                                 locally. live/: taken on the current live URL.
+assets_incoming/                The 13 full-size originals of the UI art (1254 px), untouched
 reports/                        One dated markdown file per work session (append-only log)
 ```
 
@@ -408,6 +414,76 @@ about 10.9 MB in total with the chassis) but display at 26-70 px on the board
 changed: **10.9 MB became 0.9 MB** for the art folder, and the whole `dist/`
 build is about 1.2 MB. Still crisp at the reveal size. The originals are not in
 the repo; re-export from the source art if you ever need a larger size.
+
+### UI art and the asset map (`src/assets/assetMap.js`, `components/AssetImage.jsx`)
+
+Thirteen PNGs (tokens, UI icons, badges, a flag, die art) arrived in
+`assets_incoming/` at 1254x1254 px (0.5-1.1 MB each). They keep their **exact
+original filenames** — spaces, capitals and number suffixes included. Copies
+live under `src/assets/tokens/`, `ui/` and `dice/`, resized with Lanczos to
+**512 px** (tokens, badges) or **256 px** (small icons) and saved as lossless
+PNG with the alpha channel kept: **10.75 MB became 1.33 MB**. The full-size
+originals stay in `assets_incoming/`.
+
+**The asset map is the only place those filenames appear.** Components
+import role names from `src/assets/assetMap.js`, never a path:
+
+| Role (export) | File | Shown? |
+|---|---|---|
+| `tokenNeuron` | `tokens/Friendly three-armed neuron token-4.png` | Yes — blue seat |
+| `tokenChip` | `tokens/Friendly red microchip game token-1.png` | Yes — magenta seat |
+| `tokenRobot` | `tokens/Playful Orange Robot Bust-3.png` | Yes — yellow seat |
+| `tokenSatellite` | `tokens/Boxy green satellite token-2.png` | Yes — green seat |
+| `iconTrust` | `ui/Heart Badge with White Checkmark-1.png` | Yes — before each Trust Score |
+| `flagOwned` | `ui/Minimal white pennant flag-6.png` | Yes — owned-tile marker |
+| `diceFaceBlank` | `dice/Blank Light Blue Die Face.png` | Yes — the die, pips drawn in code |
+| `coinCredit` | `ui/Yellow chip coin icon-2.png` | **No** — the game has no credits |
+| `badgeV1` | `ui/Brown badge with upward chevron-3.png` | **No** — no v1/v2/deployed status exists |
+| `badgeV2` | `ui/Light Blue Stacked Chevron Badge-4.png` | **No** |
+| `badgeDeployed` | `ui/Yellow badge with star and chevrons-5.png` | **No** |
+| `diceBlank` | `dice/Clean blue isometric cube icon.png` | **No** — the die UI is a flat face |
+| `diceBlankSpare` | `dice/Minimal isometric cyan cube.png` | **No** — a second cube with no role |
+
+`TOKENS_BY_COLOR_INDEX` pairs each seat color in `PLAYER_COLORS` (blue,
+magenta, yellow, green) with the token art closest to it. The token is
+chosen by the player's **color**, so a player's token is the same in setup
+and on the board.
+
+**Where they're drawn** (every element keeps its existing size; no game
+logic, scoring or layout changed):
+
+- **Tokens:** inside the existing 18 px colored circle on the board
+  (`PlayerToken.jsx`, art 12 px) and inside each 28 px color swatch in Local
+  setup (`TokenPicker.jsx`, art 20 px). The colored circle still shows the
+  player's color.
+- **Trust icon:** a 12 px heart before each total in `TrustPanel.jsx`.
+- **Owned flag:** replaces the 10 px owner dot in the tile's top corner
+  (`Tile.jsx`). The owner's color is still the tile's inset ring.
+- **Die:** `Dice.jsx` draws the blank face (enlarged within the same 42 px box,
+  because the art has a transparent margin) and lays out 1-6 pips on a 3x3
+  grid in code; pips turn magenta and shake while rolling.
+
+**Fallbacks.** `AssetImage` renders an `<img>` and, if it fails to load,
+switches to a `fallback` element — the old code-drawn version: the token's
+core dot, the owner dot, nothing for the heart (the number stays). `Dice`
+has its own fallback to the original "D6 / number" readout. Verified in the
+browser by pointing each image at a missing file: every fallback appeared.
+
+**Known limits:**
+
+- Tokens are small on the board (12 px art in an 18 px circle) — legible,
+  but only just.
+- In Local setup, the blue neuron on the blue swatch and the green satellite
+  on the green swatch have low contrast.
+- The white flag is faint on the pale tiles; its outline shows, and the
+  owner's color ring carries ownership.
+- A 4th token on the same tile overlaps another: `Tile.jsx` defines only 3
+  token positions (`TOKEN_OFFSETS`), so seat 4 is drawn exactly on top of
+  seat 1. Confirmed on the live site at START in a 4-player game; this
+  predates the art and is not fixed.
+- The unused coin, badge and cube files are still emitted into `dist/`
+  (they're imported by the map), but nothing references them on screen, so
+  browsers never download them.
 
 ### Leaderboard (optional)
 
@@ -710,11 +786,22 @@ except `.env.example`.
 
 ## Current UI
 
-Screenshots of the current look (the `restyle` palette and the start menu)
-were taken locally during that work; the one in `live/` was taken on the
-live URL (https://build-a-brain-co-ten.vercel.app) on 2026-11-08. Only 1 of 6
-planned live screenshots was captured that night — the browser's screenshot
-call kept timing out.
+The `restyle/` and `start-menu/` screenshots were taken locally during that
+work. Everything in `live/` was taken on the live URL
+(https://build-a-brain-co-ten.vercel.app) on 2026-11-08, most of it after the
+UI-art deploy.
+
+![Live board with the UI art](screenshots/live/local-3p-board-tokens-flags-dice-trust.jpg)
+*Live, 3-player Local game: token art on the board, white flags on owned
+tiles, the die face with pips, and the heart before each Trust Score.*
+
+![4th token overlap](screenshots/live/local-4p-start-tile-overlap.png)
+*Live, 4-player Local game at START: only three tokens are visible — seat 4
+is drawn exactly on top of seat 1 (known limit).*
+
+![Phone width](screenshots/live/phone-390-board.jpg)
+*At 390 px wide the board keeps its 620 px size inside a horizontal scroller;
+the Roll button is reached by scrolling it sideways.*
 
 ![Start menu](screenshots/start-menu/start-menu.jpg)
 *"Choose how to play": Local Multiplayer, Online Multiplayer ("Coming next"),
@@ -787,7 +874,12 @@ behind a Vercel login wall.
 - Scores are computed in the browser, so a determined visitor could submit a
   made-up score (see "Security model" above).
 - The board needs a window at least ~620 px wide (it scrolls horizontally
-  below that); the layout is not phone-optimised.
+  below that); the layout is not phone-optimised. Checked at 390 px on the
+  live site: the start menu stacks to one column with no overflow; the board
+  scrolls sideways, and the Roll button starts off-screen until you scroll.
+- UI art limits (small tokens, low-contrast blue/green swatches, faint white
+  flag, a 4th token overlapping on one tile) — see "UI art and the asset
+  map".
 - One save slot per browser; clearing site data loses it.
 - Landing fees scale with `|ethicsWeight|`, which is currently 3 for every
   module, so every fee is the same size today.

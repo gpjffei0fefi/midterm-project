@@ -52,7 +52,8 @@ The agent has never answered a question live. Turning it on needs a working mode
 
 ## Features
 
-- 16-space board with illustrated module spaces and neutral spaces, animated dice and token movement
+- 16-space board with illustrated module spaces and neutral spaces
+- Illustrated player tokens (neuron, microchip, robot, satellite), an illustrated die with pips, a trust icon on every score, and a flag on owned modules — each falls back to the simple drawn version if an image fails to load
 - Math and Ethics quiz decks with no-repeat draws
 - Live Trust Score with an Accuracy / Fairness / Transparency breakdown
 - Start menu with Local, AI and Hard (preview) modes for 2-4 players

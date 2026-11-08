@@ -122,3 +122,26 @@ deleted from here.
 ## Screenshot (from the live URL)
 
 ![Live leaderboard after the test submit](../screenshots/live/leaderboard-after-submit.jpg)
+
+## Later the same night: UI art deploy
+
+- Merged `assets` into `master` (fast-forward, `3479cc6` → `a28b51c`), 51/51
+  tests passing, pushed, and deployed once to production (READY; alias
+  https://build-a-brain-co-ten.vercel.app). **Rollback point:** `3479cc6`.
+- What shipped: illustrated player tokens, an owned-tile flag, a die face
+  with pips drawn in code, and a trust icon on every score — all from
+  `src/assets/assetMap.js`, each with a fallback to the old drawn version.
+  The coin, the three badges and both cube images are in the repo but not
+  shown anywhere (the game has no credits, levels or cube die).
+- Checked on the live URL: start menu; 3-player Local (tokens, flags, dice
+  pips, trust icons all loaded); AI Mode with 3 players for more than two
+  full rounds; Hard (preview) with **zero `/api/` requests**; leaderboard
+  loads; a 390 px phone-width view.
+- Known issue confirmed live, not fixed: in a 4-player game, the 4th token on
+  a tile is drawn exactly on top of the 1st (only 3 token positions exist).
+- At 390 px the start menu fits; the board scrolls sideways and the Roll
+  button starts off-screen until scrolled. Chrome wouldn't shrink the window
+  below a 500 px viewport, so the 390 px check used a 390 px-wide frame of
+  the live site in the same browser. *Unverified on a real phone.*
+- The `deploy-check` test row was still on the live leaderboard at the time
+  of this check.
