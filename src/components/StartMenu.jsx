@@ -1,3 +1,5 @@
+import { HARD_MODE_AGENT_ENABLED } from '../data/gameRules'
+
 const MODES = [
   {
     id: 'local',
@@ -13,12 +15,23 @@ const MODES = [
     // Yellow is reserved for a mode that does nothing yet at all.
     badge: 'Coming next',
   },
-  {
-    id: 'hard',
-    accent: 'red',
-    title: 'Hard Mode',
-    description: 'You vs. an AI that can search the web for itself.',
-  },
+  HARD_MODE_AGENT_ENABLED
+    ? {
+        id: 'hard',
+        accent: 'red',
+        title: 'Hard Mode',
+        description: 'You vs. an AI that can search the web for itself.',
+      }
+    : {
+        id: 'hard',
+        accent: 'red',
+        title: 'Hard Mode',
+        description: 'You vs. one tough AI opponent.',
+        // A quieter grey badge: fully playable today, just a reduced preview
+        // of the real thing — distinct from "Coming next" above.
+        badge: 'Hard (preview)',
+        badgeVariant: 'preview',
+      },
   {
     id: 'ai',
     accent: 'yellow',

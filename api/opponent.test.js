@@ -57,8 +57,16 @@ describe('POST /api/opponent when Gemini rejects the model (forced failure)', ()
     expect(res.body.answerIndex).toBeGreaterThanOrEqual(0)
     expect(res.body.answerIndex).toBeLessThan(card.options.length)
     expect(res.body.reasoning).toMatch(/without a live search/)
-    // getOpponentMove retries once on any rejection, so a permanent 404
-    // costs two calls before falling back.
-    expect(callGemini).toHaveBeenCalledTimes(2)
+    // A 404 is permanent, so it is not retried.
+    expect(callGemini).toHaveBeenCalledTimes(1)
+  })
+
+  it('logs the status and message, so the failure shows in Vercel logs', async () => {
+    callGemini.mockRejectedValue(liveModelNotFoundError())
+    await handler(fakeReq({ cardId: 'ethics-05', difficulty: 'hard', gameStateSummary: {} }, '203.0.113.8'), fakeRes())
+    const logged = console.error.mock.calls.flat().join('\n')
+    expect(logged).toContain('status 404')
+    expect(logged).toContain('gemini-2.5-flash is no longer available')
+    expect(logged).not.toContain('ethics-05') // never the request body
   })
 })

@@ -72,7 +72,7 @@ src/
                                   (client, via Vite `?raw`) and api/_lib/decks.js (server, via `fs`)
     quizCards.js                Parses the CSV into MATH_CARDS / ETHICS_CARDS
     gameRules.js                 Tunable balance constants (trust bonuses/penalties, AI odds, Hard Mode's
-                                  fallback tier)
+                                  fallback tier, HARD_MODE_AGENT_ENABLED)
     seatBuilders.js                Turns a mode + setup-screen choices into a seats array (buildLocalSeats,
                                     buildAiModeSeats, buildHardModeSeats)
     creatureParts.js              Where each module mounts on the chassis + snap-in order
@@ -433,15 +433,52 @@ unchanged.
   removed (the anon key can't delete rows, so this was done by hand in the
   Supabase Table Editor).
 
-### Hard Mode AI agent (optional, `api/`, `lib/opponentApi.js`, `GameBoard.jsx`)
+### Hard Mode AI agent (built, **disabled for the demo**; `api/`, `lib/opponentApi.js`, `GameBoard.jsx`)
 
-> **Status: live test FAILED on 2026-11-08 — Google rejects the model.**
-> With a real `GEMINI_API_KEY`, the very first live call returned
-> `404 … models/gemini-2.5-flash is no longer available to new users`. No
-> Hard Mode turn can currently get a real searched answer; every turn uses the
-> tier-based fallback. The fallback itself is verified end-to-end (see "Live
-> test result" below). The model has **not** been changed — that's an open
-> decision, not a fix that was made.
+> **What ships:** `HARD_MODE_AGENT_ENABLED = false` (`src/data/gameRules.js`).
+> Hard Mode is labeled **"Hard (preview)"** on the start menu, the setup
+> screen, and in game (the opponent's name). The opponent is the existing
+> tier-1 AI (70% correct coin flip). It makes **no API calls**, shows **no**
+> search chip, reasoning, or "couldn't search" note, and nothing in the UI
+> claims web search. `GameBoard` checks the flag as well as the seat, so even
+> a game saved earlier with an agent seat can't call the API. Verified in a
+> production build (`vite build` + `vite preview`) in Chrome: zero `/api/`
+> requests during play, and the built bundle contains no `/api/opponent`
+> call at all.
+>
+> **Why it's disabled:** the live test on 2026-11-08 found that
+> (a) `gemini-2.5-flash` is deprecated for new users and returns
+> `404` (exact error below), and (b) per Google's pricing page, as read on
+> 2026-11-08, Google Search grounding on its suggested replacement,
+> `gemini-3.8-flash`, is **not on the free tier**. The agent has **not** been
+> verified live — no real model has ever answered a question through it.
+>
+> **What's built:** everything below — the route, prompt, JSON validation,
+> handicap, search-evidence extraction, fallback, error logging and retry
+> rules — is in place and unit-tested against mocks. To turn it on: set
+> `HARD_MODE_MODEL` (`api/_lib/opponentAgent.js`) to a model that works,
+> enable billing for grounding if that model needs it, set
+> `GEMINI_API_KEY` in Vercel, flip the flag, and run the 3-question live test.
+
+**Google's docs as read on 2026-11-08** (the `ai.google.dev/gemini-api/docs/*`
+URLs now 301-redirect to these):
+
+- [Models](https://aistudio.google.com/docs/models): `gemini-3.8-flash`
+  ("Gemini 3.8 Flash", badged "New") exists. `gemini-2.5-flash` is
+  deprecated: existing users only, and from 2026-12-01 its requests route to
+  `gemini-3.5-flash-lite`.
+- [Pricing](https://aistudio.google.com/docs/pricing): the Gemini 3.8 Flash
+  table's "Grounding with Google Search" row says **"Not available"** in the
+  Free Tier column; paid tier is 5,000 free search requests/month shared
+  across Gemini 3+ models, then $14 per 1,000, capped at 1,500/day.
+  **The page contradicts itself:** its separate "Pricing for tools" table
+  lists Google Search on the free tier as "500 RPD free (limit shared for
+  Flash and Flash-Lite)" without naming a model generation (its paid column
+  does split 2.5 vs. 3+). The model-specific row was treated as
+  authoritative; this wasn't tested with a live call.
+- [Rate limits](https://aistudio.google.com/docs/rate-limits): no free-tier
+  RPM/TPM/RPD numbers are published for `gemini-3.8-flash`; the page says
+  current limits are only viewable in Google AI Studio.
 
 Hard Mode's AI opponent is a real agent, not a fixed-probability coin flip:
 it's handed the question and decides for itself, using a live Google Search
@@ -451,9 +488,9 @@ call fails for any reason, Hard Mode keeps working with the original
 tier-based coin-flip AI (`AI_CORRECT_PROBABILITY_BY_TIER`, tier 1 = 70%
 correct) and a small "Opponent couldn't search this turn" note.
 
-**Model & free-tier limits, as currently documented by Google:**
+**Model & free-tier limits, as originally chosen (before the deprecation above):**
 
-- **Model:** `gemini-2.5-flash` — confirmed current via
+- **Model:** `gemini-2.5-flash` (still the value of `HARD_MODE_MODEL`, unchanged) — was current per
   [ai.google.dev/gemini-api/docs/models](https://ai.google.dev/gemini-api/docs/models).
   The newer Gemini 3.x family was deliberately **not** chosen: its own pricing
   page contradicts itself (each model's row says Search grounding is "Not
@@ -482,7 +519,8 @@ correct) and a small "Opponent couldn't search this turn" note.
 production. **Never** prefixed `VITE_`/`NEXT_PUBLIC_` — it must stay
 server-only. It is read in exactly one place, `api/_lib/geminiClient.js`;
 nothing under `src/` imports that file, so it can never end up in the client
-bundle, and it is never logged (not even on error — only `error.message` is).
+bundle, and it is never logged: model errors are logged as status code and
+message only, with anything key-shaped redacted (`describeModelError`).
 
 **Request flow:**
 
@@ -501,7 +539,12 @@ bundle, and it is never logged (not even on error — only `error.message` is).
    prompt explicitly says a self-contained math question rarely needs one.
 4. The model's reply is parsed for a trailing JSON object
    (`{answerIndex, confidence, reasoning}`); a malformed or out-of-range reply
-   is retried once, then falls back to the tier-based coin flip.
+   is retried once, then falls back to the tier-based coin flip. A thrown
+   model error is logged (`[opponent] model error (status 404): …`) before
+   the fallback, so it shows up in Vercel's function logs. Errors with a
+   4xx status other than 429 (bad model, bad key, bad request) are
+   permanent and **not** retried; 429s, 5xx, timeouts and network errors
+   get the one retry (`isPermanentModelError`).
 5. Search evidence (`searched`, `queries`, `sources`) is read from the
    Interactions API's own step log (`google_search_call` / `url_citation`
    annotations), not from anything the model self-reports in its JSON.
@@ -517,23 +560,28 @@ bundle, and it is never logged (not even on error — only `error.message` is).
    `fetch` throwing — resolves to the exact same tier-based fallback answer,
    so the game can never freeze waiting on a search that isn't coming.
 
-**UI** (`LandingQuiz.jsx`): during the opponent's turn it shows "Opponent is
+**UI when enabled** (`LandingQuiz.jsx`; none of this renders while the flag
+is off): during the opponent's turn it shows "Opponent is
 thinking…", then (once the model's step log shows a search happened) a
 "Searched: `<query>`" chip with clickable source links, then — once the
 answer resolves — the model's one-sentence reasoning. If either side had to
 fall back, a small "Opponent couldn't search this turn" note appears instead
 of the search chip.
 
-**Tests** (42 across the whole suite, none spend real quota):
+**Tests** (51 across the whole suite, all passing; none spend real quota):
 
 - `api/_lib/opponentAgent.test.js` mocks `callModel` and includes a dedicated
   "forced failure" group (a rejected promise, malformed JSON twice in a row,
-  and an out-of-range index) that each confirm the fallback path is taken.
+  and an out-of-range index) that each confirm the fallback path is taken,
+  plus the retry rules (404 → 1 call, 429 → retried and recovers, timeout →
+  retried), the log line format, and key redaction.
 - `api/opponent.test.js` runs the real route handler with only `callGemini`
   mocked, rejecting with the exact 404 from the live test below, and asserts
-  a 200 with a valid, `usedFallback: true` move.
-- `src/data/seatBuilders.test.js` guards the Hard AI seat's `usesAgent` flag
-  (see the bug below).
+  a 200 with a valid, `usedFallback: true` move after a single call, with
+  `status 404` and the message in the log and no request body.
+- `src/data/seatBuilders.test.js`: with the flag off, the Hard seat is the
+  tier-1 AI named "Hard (preview)" with no agent; with it on, only that seat
+  uses the agent (the regression test for the bug below).
 
 **Live test result (2026-11-08).** Run against `getOpponentMove` with the
 real `callGemini` and the route's 15s timeout, `GEMINI_API_KEY` set in
@@ -551,9 +599,10 @@ stopped on the first error.
 
 Total real network calls: **1**. So there is no `answerIndex`, search flag,
 query, source, or reasoning from a real model to report. The model was
-deliberately **not** switched — the 404 suggests `gemini-3.8-flash`, but
-the model choice above was made on grounding-quota grounds, so changing it
-needs a fresh decision, and a new live test after.
+**not** switched: the 404 points to `gemini-3.8-flash`, but Google's pricing
+page lists grounding for it as not on the free tier (see the top of this
+section), so the agent was disabled for the demo instead. No further live
+calls were made.
 
 **Bug found and fixed during this test:** `buildPlayers`
 (`data/boardData.js`) copied each seat's `isAI`/`aiTier` but dropped
@@ -572,14 +621,12 @@ overlay showed "Opponent is thinking…" then "Opponent couldn't search this
 turn", the answer resolved (Hard AI acquired BA-1, trust 95), and the turn
 passed back to Player 1. The game did not stall.
 
-**Known gaps surfaced by the test:**
+**Gaps surfaced by the test, both fixed** (see step 4 of the request flow):
 
-- A model-level failure is invisible in server logs. `getOpponentMove`
-  catches every model error itself and returns the fallback, so
-  `api/opponent.js`'s `console.error` never fires — the 404 above would
-  never show up in Vercel's logs; it only looks like "the AI never searches."
-- A permanent error (like this 404) is still retried once, so each Hard AI
-  turn spends two failing calls before falling back.
+- Model errors used to be swallowed into the fallback without any log line;
+  they are now logged as status + message before falling back.
+- Permanent errors (like this 404) used to be retried; 4xx other than 429
+  now fall back after a single call.
 
 ### Save / resume, and Play Again (`lib/saveGame.js`, `GameBoard.jsx`, `App.jsx`)
 
@@ -681,6 +728,6 @@ git-ignored. Re-deploy after any change with the same command.
 - One save slot per browser; clearing site data loses it.
 - Landing fees scale with `|ethicsWeight|`, which is currently 3 for every
   module, so every fee is the same size today.
-- Hard Mode's web-searching agent has not been exercised against a real
-  `GEMINI_API_KEY` yet (unset in this environment) — see "Hard Mode AI agent"
-  above for exactly what is and isn't verified.
+- Hard Mode ships as "Hard (preview)": the web-searching agent is built and
+  unit-tested but disabled (`HARD_MODE_AGENT_ENABLED = false`), and has
+  never answered a question live — see "Hard Mode AI agent" above.

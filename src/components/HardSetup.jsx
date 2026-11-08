@@ -1,3 +1,5 @@
+import { HARD_MODE_AGENT_ENABLED } from '../data/gameRules'
+
 const MAX_NAME_LENGTH = 16
 
 function HardSetup({ name, onNameChange, onBack, onStart }) {
@@ -22,11 +24,18 @@ function HardSetup({ name, onNameChange, onBack, onStart }) {
             autoFocus
           />
         </label>
-        <p className="intro__lead">
-          One opponent, no mercy — Hard Mode's AI can search the web for itself before
-          answering. If it ever can't reach the search agent, it falls back to a tough
-          coin-flip AI so the game keeps moving.
-        </p>
+        {HARD_MODE_AGENT_ENABLED ? (
+          <p className="intro__lead">
+            One opponent, no mercy — Hard Mode's AI can search the web for itself before
+            answering. If it ever can't reach the search agent, it falls back to a tough
+            coin-flip AI so the game keeps moving.
+          </p>
+        ) : (
+          <p className="intro__lead">
+            One opponent, no mercy — Hard (preview) pits you against the toughest of the
+            game's built-in AIs.
+          </p>
+        )}
         <div className="intro__actions">
           <button type="button" className="intro__button intro__button--ghost" onClick={onBack}>
             Back

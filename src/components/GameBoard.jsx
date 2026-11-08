@@ -10,6 +10,7 @@ import {
   NEUTRAL_PENALTY,
   AI_CORRECT_PROBABILITY_BY_TIER,
   LAPS_TO_WIN,
+  HARD_MODE_AGENT_ENABLED,
 } from '../data/gameRules'
 import {
   ROLL_TICK_MS,
@@ -200,7 +201,9 @@ function GameBoard({ players: initialPlayers, initialSave, onPlayAgain }) {
 
   function presentQuiz(card, describeResult, actingPlayer) {
     const isAI = actingPlayer.isAI
-    const usesAgent = Boolean(actingPlayer.usesAgent)
+    // Checked against the flag too, so a game saved while the agent was on
+    // can't make API calls after it has been switched off.
+    const usesAgent = HARD_MODE_AGENT_ENABLED && Boolean(actingPlayer.usesAgent)
     return new Promise((resolve) => {
       quizResolverRef.current = resolve
       setActiveQuiz({

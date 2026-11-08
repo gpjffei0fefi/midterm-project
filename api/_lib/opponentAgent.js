@@ -160,11 +160,32 @@ export async function getOpponentMove({ cardId, difficulty, gameStateSummary, ca
           usedFallback: false,
         }
       }
-    } catch {
-      // network error, non-2xx, timeout, etc. — fall through to the retry,
-      // and ultimately to the fallback below, rather than rejecting.
+    } catch (error) {
+      // Logged here, not in api/opponent.js, because this catch is what
+      // turns the error into a fallback — the route never sees it.
+      console.error(describeModelError(error))
+      if (isPermanentModelError(error)) break
     }
   }
 
   return fallbackAnswer(card, { random })
+}
+
+// A 4xx other than 429 (bad model name, bad key, bad request) will fail the
+// same way on a retry, so it isn't retried. Malformed output, network
+// errors, timeouts, 429s and 5xx still get the one retry.
+export function isPermanentModelError(error) {
+  const status = error?.status
+  return Number.isInteger(status) && status >= 400 && status < 500 && status !== 429
+}
+
+// Status and message only. The SDK sends the key in a header, not the URL,
+// but any key-shaped string is redacted anyway in case a message ever
+// echoes one back.
+export function describeModelError(error) {
+  const status = Number.isInteger(error?.status) ? error.status : 'none'
+  const message = String(error?.message ?? 'unknown error')
+    .replace(/AIza[0-9A-Za-z_-]{20,}/g, '[redacted]')
+    .replace(/([?&]key=)[^&\s]+/g, '$1[redacted]')
+  return `[opponent] model error (status ${status}): ${message}`
 }

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import {
   getOpponentMove,
   fallbackAnswer,
@@ -7,6 +7,8 @@ import {
   extractJson,
   extractSearchEvidence,
   buildPrompt,
+  isPermanentModelError,
+  describeModelError,
   HARD_MODE_MISS_RATE,
 } from './opponentAgent.js'
 import { findCardById } from './decks.js'
@@ -229,5 +231,72 @@ describe('getOpponentMove: the full decision path', () => {
     await expect(
       getOpponentMove({ cardId: 'not-a-real-card', callModel: vi.fn() })
     ).rejects.toThrow(/unknown card id/)
+  })
+})
+
+function errorWithStatus(status, message = `status ${status}`) {
+  const error = new Error(message)
+  error.status = status
+  return error
+}
+
+describe('which model errors get retried', () => {
+  beforeEach(() => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+  })
+  afterEach(() => {
+    console.error.mockRestore()
+  })
+
+  it('treats 4xx other than 429 as permanent, everything else as retryable', () => {
+    expect(isPermanentModelError(errorWithStatus(400))).toBe(true)
+    expect(isPermanentModelError(errorWithStatus(401))).toBe(true)
+    expect(isPermanentModelError(errorWithStatus(404))).toBe(true)
+    expect(isPermanentModelError(errorWithStatus(429))).toBe(false)
+    expect(isPermanentModelError(errorWithStatus(503))).toBe(false)
+    expect(isPermanentModelError(new Error('timeout'))).toBe(false)
+  })
+
+  it('does not retry a 404, and falls back after one call', async () => {
+    const callModel = vi.fn().mockRejectedValue(errorWithStatus(404, 'model not found'))
+    const move = await getOpponentMove({ cardId: sampleCard.id, callModel, random: () => 0.5 })
+    expect(callModel).toHaveBeenCalledTimes(1)
+    expect(move.usedFallback).toBe(true)
+  })
+
+  it('retries a 429 once, and uses the answer if the retry succeeds', async () => {
+    const callModel = vi
+      .fn()
+      .mockRejectedValueOnce(errorWithStatus(429, 'quota'))
+      .mockResolvedValueOnce(interactionWithText('{"answerIndex": 0, "confidence": 0.6, "reasoning": "after 429"}'))
+    const move = await getOpponentMove({ cardId: sampleCard.id, callModel, random: () => 0.99 })
+    expect(callModel).toHaveBeenCalledTimes(2)
+    expect(move.usedFallback).toBe(false)
+  })
+
+  it('retries a timeout once', async () => {
+    const callModel = vi.fn().mockRejectedValue(new Error('timeout'))
+    await getOpponentMove({ cardId: sampleCard.id, callModel, random: () => 0.5 })
+    expect(callModel).toHaveBeenCalledTimes(2)
+  })
+
+  it('logs status and message for each failed call', async () => {
+    const callModel = vi.fn().mockRejectedValue(errorWithStatus(403, 'permission denied'))
+    await getOpponentMove({ cardId: sampleCard.id, callModel, random: () => 0.5 })
+    expect(console.error).toHaveBeenCalledWith('[opponent] model error (status 403): permission denied')
+  })
+})
+
+describe('describeModelError never prints a key', () => {
+  it('redacts key-shaped strings and key= query params', () => {
+    const fakeKey = 'AIza' + 'x'.repeat(35)
+    const line = describeModelError(errorWithStatus(400, `bad request for ${fakeKey} at /v1?key=${fakeKey}&alt=json`))
+    expect(line).not.toContain(fakeKey)
+    expect(line).toContain('status 400')
+    expect(line).toContain('[redacted]')
+  })
+
+  it('reports "none" when the error has no status', () => {
+    expect(describeModelError(new Error('timeout'))).toBe('[opponent] model error (status none): timeout')
   })
 })
